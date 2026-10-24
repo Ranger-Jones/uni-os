@@ -1,0 +1,23 @@
+import { seed } from './seed-demo.mjs'
+export default async function (win, out) {
+  const ids = await seed(win)
+  await win.reload()
+  await win.getByText('Assistant', { exact: true }).click()
+  await win.waitForTimeout(400)
+  await win.screenshot({ path: `${out}-empty.png` })
+  await win.getByPlaceholder('Ask about your courses…').fill('Was steht diese Woche an?')
+  await win.keyboard.press('Enter')
+  await win.waitForTimeout(2500)
+  await win.screenshot({ path: `${out}-answer.png` })
+  await win.getByPlaceholder('Ask about your courses…').fill(`please create sheet 5 for course ${ids.ana}`)
+  await win.keyboard.press('Enter')
+  await win.getByRole('button', { name: 'Apply' }).waitFor({ timeout: 5000 })
+  await win.screenshot({ path: `${out}-approval.png` })
+  await win.getByRole('button', { name: 'Apply' }).click()
+  await win.waitForTimeout(2000)
+  await win.getByText('Analysis I').first().click()
+  await win.keyboard.press('Meta+j')
+  await win.waitForTimeout(500)
+  await win.getByRole('tab', { name: 'Assignments' }).click()
+  await win.waitForTimeout(400)
+}

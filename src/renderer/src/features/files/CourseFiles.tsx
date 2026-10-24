@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { ExternalLink, File, FileImage, FileText, FolderSearch, MoreHorizontal, Pencil, Trash2, Upload, X } from 'lucide-react'
+import { ExternalLink, File, FileImage, FileText, FolderSearch, MoreHorizontal, Pencil, Sparkles, Trash2, Upload, X } from 'lucide-react'
+import { useUi } from '../../lib/store'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import type { FileMeta } from '@core/repo/files'
@@ -23,6 +24,7 @@ export function CourseFiles({ courseId }: { courseId: string }) {
   const [preview, setPreview] = useState<{ file: FileMeta; url: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const remove = useApiMutation((id: string) => api.files.remove({ id }))
+  const ask = useUi((s) => s.askAssistant)
 
   const importPaths = async (fn: () => Promise<FileMeta[]>) => {
     setBusy(true)
@@ -98,6 +100,11 @@ export function CourseFiles({ courseId }: { courseId: string }) {
                       <MoreHorizontal size={15} />
                     </MenuTrigger>
                     <MenuContent align="end">
+                      {f.hasText && (
+                        <MenuItem icon={<Sparkles size={14} />} onSelect={() => ask(`Explain the key ideas of the file "${f.name}" and list what I should be able to do after studying it.`, courseId)}>
+                          Explain with assistant
+                        </MenuItem>
+                      )}
                       <MenuItem icon={<ExternalLink size={14} />} onSelect={() => void api.files.open({ id: f.id })}>
                         Open in default app
                       </MenuItem>

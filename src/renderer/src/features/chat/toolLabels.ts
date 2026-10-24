@@ -1,0 +1,35 @@
+const LABELS: Record<string, string> = {
+  list_semesters: 'Looked at semesters',
+  list_courses: 'Looked at courses',
+  get_course: 'Opened course',
+  list_pages: 'Listed notes',
+  read_page: 'Read note',
+  search: 'Searched',
+  list_assignments: 'Checked assignments',
+  list_events: 'Checked calendar',
+  get_schedule: 'Checked timetable',
+  get_grades: 'Checked grades',
+  grade_forecast: 'Calculated forecast',
+  list_files: 'Listed files',
+  read_file_text: 'Read file',
+  list_decks: 'Looked at flashcards',
+  list_cards: 'Read flashcards',
+  create_page: 'Create note',
+  append_to_page: 'Add to note',
+  update_page: 'Rewrite note',
+  create_assignment: 'Create assignment',
+  update_assignment: 'Update assignment',
+  create_event: 'Add calendar event',
+  set_component_grade: 'Record grade',
+  create_flashcards: 'Create flashcards'
+}
+
+export const toolLabel = (name: string): string => LABELS[name] ?? name.replace(/_/g, ' ')
+
+/** One-line hint of what the tool call is about, from its input. */
+export function toolHint(input: unknown): string {
+  if (!input || typeof input !== 'object') return ''
+  const i = input as Record<string, unknown>
+  const v = i.query ?? i.title ?? i.name ?? (Array.isArray(i.cards) ? `${i.cards.length} cards` : undefined)
+  return typeof v === 'string' ? `“${v.length > 48 ? v.slice(0, 48) + '…' : v}”` : ''
+}

@@ -1,4 +1,7 @@
 import { FolderOpen } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { Input, Select } from '../../components/ui/Input'
 import type { ReactNode } from 'react'
 import type { Settings } from '@core/settings'
 import { Page } from '../../components/layout/Page'
@@ -75,6 +78,10 @@ export function SettingsView() {
         </Row>
       </Section>
 
+      <Section title="Assistant">
+        <AiSettings settings={s} onChange={(patch) => update.mutate(patch)} />
+      </Section>
+
       <Section title="Appearance">
         <Row label="Theme">
           <div className="flex rounded-md border border-line p-0.5">
@@ -136,5 +143,61 @@ function TrashList() {
         </li>
       ))}
     </ul>
+  )
+}
+
+function KeyRow({ provider, label, hint, saved }: { provider: 'anthropic' | 'openai'; label: string; hint: string; saved: boolean }) {
+  const [value, setValue] = useState('')
+  const save = useApiMutation((key: string | null) => api.ai.setKey({ provider, key }), { success: 'API key saved' })
+  return (
+    <Row label={label} hint={saved ? 'Saved in your macOS keychain.' : hint}>
+      {saved ? (
+        <Button size="sm" variant="ghost" onClick={() => save.mutate(null)}>
+          Remove key
+        </Button>
+      ) : (
+        <>
+          <Input type="password" className="w-60" placeholder="Paste API key" value={value} onChange={(e) => setValue(e.target.value)} />
+          <Button size="sm" disabled={!value.trim()} onClick={() => save.mutate(value, { onSuccess: () => setValue('') })}>
+            Save
+          </Button>
+        </>
+      )}
+    </Row>
+  )
+}
+
+function AiSettings({ settings, onChange }: { settings: Settings; onChange: (p: Partial<Settings>) => void }) {
+  const keys = useQuery({ queryKey: ['ai', 'keys'], queryFn: () => api.ai.keyStatus() })
+  const models = useQuery({ queryKey: ['ai', 'models'], queryFn: () => api.ai.models() })
+  const [openaiModel, setOpenaiModel] = useState(settings.openaiModel)
+  return (
+    <>
+      <KeyRow provider="anthropic" label="Anthropic API key" hint="For Claude. Create one at console.anthropic.com." saved={!!keys.data?.anthropic} />
+      <KeyRow provider="openai" label="OpenAI API key" hint="For ChatGPT models. Create one at platform.openai.com." saved={!!keys.data?.openai} />
+      <Row label="Default for new chats">
+        <Select className="w-36" value={settings.defaultProvider} onChange={(e) => onChange({ defaultProvider: e.target.value as Settings['defaultProvider'] })}>
+          <option value="anthropic">Claude</option>
+          <option value="openai">OpenAI</option>
+        </Select>
+      </Row>
+      <Row label="Claude model">
+        <Select className="w-48" value={settings.anthropicModel} onChange={(e) => onChange({ anthropicModel: e.target.value })}>
+          {models.data?.anthropic.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.label}
+            </option>
+          ))}
+        </Select>
+      </Row>
+      <Row label="OpenAI model" hint="Any chat model name your key can use.">
+        <Input className="w-48" list="openai-models" value={openaiModel} onChange={(e) => setOpenaiModel(e.target.value)} onBlur={() => openaiModel.trim() && openaiModel !== settings.openaiModel && onChange({ openaiModel: openaiModel.trim() })} />
+        <datalist id="openai-models">
+          {models.data?.openai.map((m) => (
+            <option key={m} value={m} />
+          ))}
+        </datalist>
+      </Row>
+    </>
   )
 }

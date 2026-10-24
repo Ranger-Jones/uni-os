@@ -22,7 +22,7 @@ const today = createRoute({ getParentRoute: () => root, path: '/today', componen
 const calendar = createRoute({ getParentRoute: () => root, path: '/calendar', component: CalendarView })
 const grades = createRoute({ getParentRoute: () => root, path: '/grades', component: GradesView })
 const flashcards = createRoute({ getParentRoute: () => root, path: '/flashcards', component: FlashcardsView })
-const chat = createRoute({
+export const chatRoute = createRoute({
   getParentRoute: () => root,
   path: '/chat',
   validateSearch: (s: Record<string, unknown>): { thread?: string } => (typeof s.thread === 'string' ? { thread: s.thread } : {}),
@@ -37,7 +37,7 @@ export const courseRoute = createRoute({
 export const pageRoute = createRoute({ getParentRoute: () => root, path: '/pages/$pageId', component: PageView })
 const settings = createRoute({ getParentRoute: () => root, path: '/settings', component: SettingsView })
 
-const routeTree = root.addChildren([index, today, calendar, grades, flashcards, chat, courseRoute, pageRoute, settings])
+const routeTree = root.addChildren([index, today, calendar, grades, flashcards, chatRoute, courseRoute, pageRoute, settings])
 
 export const router = createRouter({ routeTree, history: createHashHistory(), defaultPreload: false })
 

@@ -1,5 +1,6 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Archive, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { Archive, MessageSquare, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { useUi } from '../../lib/store'
 import { useEffect, useState } from 'react'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '../../components/ui/Menu'
@@ -37,6 +38,7 @@ export function CourseView() {
   const course = useCourse(courseId)
   const sessions = useSessions(courseId)
   const [editOpen, setEditOpen] = useState(false)
+  const ask = useUi((s) => s.askAssistant)
   const update = useApiMutation((patch: Parameters<typeof api.courses.update>[0]['patch']) => api.courses.update({ id: courseId, patch }))
   const remove = useApiMutation(() => api.courses.remove({ id: courseId }), { success: 'Course deleted' })
 
@@ -68,6 +70,9 @@ export function CourseView() {
               <MoreHorizontal size={18} />
             </MenuTrigger>
             <MenuContent align="end">
+              <MenuItem icon={<MessageSquare size={14} />} onSelect={() => ask('', courseId)}>
+                Ask assistant about this course
+              </MenuItem>
               <MenuItem icon={<Pencil size={14} />} onSelect={() => setEditOpen(true)}>
                 Edit course
               </MenuItem>

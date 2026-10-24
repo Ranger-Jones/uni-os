@@ -7,6 +7,10 @@ interface UiState {
   expanded: Record<string, boolean>
   toggleExpanded: (id: string, open?: boolean) => void
   chatOpen: boolean
+  chatThreadId: string | null
+  setChatThreadId: (id: string | null) => void
+  chatDraft: { text: string; courseId: string | null; nonce: number } | null
+  askAssistant: (text: string, courseId: string | null) => void
   setChatOpen: (open: boolean) => void
   paletteOpen: boolean
   setPaletteOpen: (open: boolean) => void
@@ -22,6 +26,10 @@ export const useUi = create<UiState>()(
       expanded: {},
       toggleExpanded: (id, open) => set((s) => ({ expanded: { ...s.expanded, [id]: open ?? !s.expanded[id] } })),
       chatOpen: false,
+      chatThreadId: null,
+      setChatThreadId: (chatThreadId) => set({ chatThreadId }),
+      chatDraft: null,
+      askAssistant: (text, courseId) => set({ chatOpen: true, chatThreadId: null, chatDraft: { text, courseId, nonce: Date.now() } }),
       setChatOpen: (chatOpen) => set({ chatOpen }),
       paletteOpen: false,
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),

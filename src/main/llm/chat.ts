@@ -7,6 +7,7 @@ import { runTool, toolSpecs } from '@core/tools'
 import type { AppContext } from '../context'
 import { getKey } from '../secrets'
 import { anthropicAdapter } from './anthropic'
+import { fakeAdapter } from './fake'
 import { openaiAdapter } from './openai'
 
 export type ChatStreamEvent = { runId: string; threadId: string } & (LoopEvent | { type: 'error'; message: string } | { type: 'approval'; id: string; name: string; input: unknown })
@@ -35,6 +36,7 @@ export class ChatService {
   }
 
   private adapter(provider: 'anthropic' | 'openai', model: string): LlmAdapter<unknown> {
+    if (process.env.UNIOS_FAKE_LLM === '1') return fakeAdapter() as LlmAdapter<unknown>
     const key = getKey(provider)
     if (!key) throw new Error(`Add your ${provider === 'anthropic' ? 'Anthropic' : 'OpenAI'} API key in Settings to use the assistant.`)
     return (provider === 'anthropic' ? anthropicAdapter(key, model) : openaiAdapter(key, model)) as LlmAdapter<unknown>

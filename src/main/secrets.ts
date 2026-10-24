@@ -34,4 +34,5 @@ export function setKey(provider: Provider, key: string | null): void {
   writeFileSync(file(), JSON.stringify(all), { mode: 0o600 })
 }
 
-export const keyStatus = (): Record<Provider, boolean> => ({ anthropic: !!getKey('anthropic'), openai: !!getKey('openai') })
+export const keyStatus = (): Record<Provider, boolean> =>
+  process.env.UNIOS_FAKE_LLM === '1' ? { anthropic: true, openai: false } : { anthropic: !!getKey('anthropic'), openai: !!getKey('openai') }

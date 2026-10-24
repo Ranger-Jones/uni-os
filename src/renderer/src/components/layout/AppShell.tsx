@@ -1,11 +1,26 @@
 import { Outlet } from '@tanstack/react-router'
+import { useEffect } from 'react'
 import { useUi } from '../../lib/store'
+import { ChatPanel } from '../../features/chat/ChatPanel'
 import { CommandPalette } from './CommandPalette'
 import { Sidebar } from './Sidebar'
 
 export function AppShell() {
   const width = useUi((s) => s.sidebarWidth)
   const setWidth = useUi((s) => s.setSidebarWidth)
+  const chatOpen = useUi((s) => s.chatOpen)
+  const setChatOpen = useUi((s) => s.setChatOpen)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey && e.key.toLowerCase() === 'j') {
+        e.preventDefault()
+        setChatOpen(!useUi.getState().chatOpen)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [setChatOpen])
 
   const startResize = (e: React.PointerEvent) => {
     const startX = e.clientX
@@ -31,6 +46,7 @@ export function AppShell() {
           <Outlet />
         </div>
       </main>
+      {chatOpen && <ChatPanel />}
       <CommandPalette />
     </div>
   )
