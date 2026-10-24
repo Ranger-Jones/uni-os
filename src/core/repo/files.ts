@@ -76,12 +76,6 @@ export function deleteFile(db: Db, filesDir: string, id: string): void {
   rmSync(abs, { force: true })
 }
 
-/** Remove a course's file folder; call before deleting the course row. */
-export function purgeCourseFiles(filesDir: string, courseId: string): void {
-  const abs = resolveInside(filesDir, courseId)
-  if (abs) rmSync(abs, { recursive: true, force: true })
-}
-
 export function textPage(db: Db, id: string, opts: { offset?: number; limit?: number } = {}): { text: string; total: number; nextOffset: number | null } {
   const text = get(db, id).text ?? ''
   const offset = Math.max(0, opts.offset ?? 0)

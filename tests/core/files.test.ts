@@ -5,7 +5,6 @@ import { beforeEach, expect, test } from 'vitest'
 import type { Db } from '@core/db/open'
 import { extractText } from '@core/domain/extract'
 import * as files from '@core/repo/files'
-import * as courses from '@core/repo/courses'
 import * as search from '@core/repo/search'
 import { memDb } from '../helpers/db'
 import { seedCourse } from '../helpers/fixtures'
@@ -69,15 +68,6 @@ test('deleteFile removes row, index entry and the stored file', async () => {
   expect(existsSync(join(filesDir, f.storedPath))).toBe(false)
   expect(search.query(db, 'fourier')).toHaveLength(0)
   expect(() => files.get(db, f.id)).toThrow(/not found/i)
-})
-
-test('deleting a course removes its file folder via purgeCourseFiles', async () => {
-  const src = join(dir, 'a.txt')
-  writeFileSync(src, 'x')
-  const [f] = await files.importFiles(db, filesDir, courseId, [src])
-  files.purgeCourseFiles(filesDir, courseId)
-  courses.remove(db, courseId)
-  expect(existsSync(join(filesDir, f.storedPath))).toBe(false)
 })
 
 test('rename keeps the stored file and re-indexes the name', async () => {

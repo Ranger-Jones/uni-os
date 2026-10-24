@@ -42,11 +42,11 @@ interface Props {
   onChange(blocks: unknown[]): void
 }
 
-export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialContent, externalContent, onExternalApplied, onChange }, ref) {
+export const Editor = forwardRef<EditorHandle, Props>(function Editor({ pageId, initialContent, externalContent, onExternalApplied, onChange }, ref) {
   const editor = useCreateBlockNote({
     schema,
     initialContent: initialContent.length ? (initialContent as never) : undefined,
-    uploadFile: async (file: File) => api.assets.store({ name: file.name, data: new Uint8Array(await file.arrayBuffer()) })
+    uploadFile: async (file: File) => api.assets.store({ pageId, name: file.name, data: new Uint8Array(await file.arrayBuffer()) })
   })
   const wrapper = useRef<HTMLDivElement>(null)
   const appliedVersion = useRef<string | undefined>(externalContent?.version)

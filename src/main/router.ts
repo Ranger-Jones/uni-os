@@ -10,7 +10,8 @@ import * as search from '@core/repo/search'
 import * as semesters from '@core/repo/semesters'
 import * as sessions from '@core/repo/sessions'
 import type { Settings } from '@core/settings'
-import { storeAsset } from './assets'
+import { storeAsset } from '@core/assets'
+import { purgePageWithFiles, removeCourseWithFiles, removeSemesterWithFiles } from '@core/repo/deletion'
 import { backupNow, backupStatus } from './backup'
 import { fileUrl } from './protocol'
 import { isSafeToOpen } from '@core/paths'
@@ -62,20 +63,14 @@ export function createRouter(ctx: AppContext, host: Host, chat: ChatService) {
       current: () => semesters.current(ctx.db),
       create: (input: semesters.SemesterInput) => semesters.create(ctx.db, input),
       update: ({ id, patch }: Patch<Parameters<typeof semesters.update>[2]>) => semesters.update(ctx.db, id, patch),
-      remove: ({ id }: { id: string }) => {
-        for (const c of courses.list(ctx.db, { semesterId: id, includeArchived: true })) files.purgeCourseFiles(ctx.filesDir, c.id)
-        semesters.remove(ctx.db, id)
-      }
+      remove: ({ id }: { id: string }) => removeSemesterWithFiles(ctx.db, ctx.filesDir, id)
     },
     courses: {
       list: (opts: { semesterId?: string; includeArchived?: boolean } = {}) => courses.list(ctx.db, opts),
       get: ({ id }: { id: string }) => courses.get(ctx.db, id),
       create: (input: courses.CourseInput) => courses.create(ctx.db, input),
       update: ({ id, patch }: Patch<Parameters<typeof courses.update>[2]>) => courses.update(ctx.db, id, patch),
-      remove: ({ id }: { id: string }) => {
-        files.purgeCourseFiles(ctx.filesDir, id)
-        courses.remove(ctx.db, id)
-      }
+      remove: ({ id }: { id: string }) => removeCourseWithFiles(ctx.db, ctx.filesDir, id)
     },
     pages: {
       tree: ({ courseId }: { courseId: string | null }) => pages.tree(ctx.db, { courseId }),
@@ -87,7 +82,7 @@ export function createRouter(ctx: AppContext, host: Host, chat: ChatService) {
       duplicate: ({ id }: { id: string }) => pages.duplicate(ctx.db, id),
       trash: ({ id }: { id: string }) => pages.trash(ctx.db, id),
       restore: ({ id }: { id: string }) => pages.restore(ctx.db, id),
-      purge: ({ id }: { id: string }) => pages.purge(ctx.db, id),
+      purge: ({ id }: { id: string }) => purgePageWithFiles(ctx.db, ctx.filesDir, id),
       listTrash: () => pages.listTrash(ctx.db)
     },
     search: {
@@ -147,7 +142,7 @@ export function createRouter(ctx: AppContext, host: Host, chat: ChatService) {
       generate: ({ pageId }: { pageId: string }) => chat.generateCards(pageId)
     },
     assets: {
-      store: ({ name, data }: { name: string; data: Uint8Array }) => storeAsset(ctx, name, data)
+      store: ({ pageId, name, data }: { pageId: string; name: string; data: Uint8Array }) => fileUrl(storeAsset(ctx.filesDir, pageId, name, data))
     },
     assignments: {
       list: (f: assignments.AssignmentFilter = {}) => assignments.list(ctx.db, f),
