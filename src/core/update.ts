@@ -2,6 +2,11 @@
 
 export const UPDATE_REPO = 'Ranger-Jones/uni-os'
 
+/** Public half of the offline release-signing key (private key: ~/.config/unios-release/update-signing-key.pem). */
+export const UPDATE_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEAp4Ti9a8cX5+oadpV/jTmCZ1SpFHzXKvAA97iGImvhB0=
+-----END PUBLIC KEY-----`
+
 export interface ReleaseAsset {
   name: string
   url: string

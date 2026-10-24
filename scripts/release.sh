@@ -17,9 +17,13 @@ FILES=(UniOS-$VERSION-arm64.dmg UniOS-$VERSION-x64.dmg UniOS-$VERSION-arm64-mac.
   UniOS-Setup-$VERSION-x64.exe UniOS-$VERSION-x86_64.AppImage UniOS-$VERSION-amd64.deb)
 shasum -a 256 "${FILES[@]}" > SHA256SUMS.txt
 cd ..
+# Sign the checksums with the offline release key; the app refuses macOS updates without a valid signature.
+KEY="${UNIOS_SIGNING_KEY:-$HOME/.config/unios-release/update-signing-key.pem}"
+[ -f "$KEY" ] || { echo "Missing signing key $KEY"; exit 1; }
+node scripts/sign-checksums.cjs "$KEY"
 
 git tag -a "v$VERSION" -m "UniOS $VERSION"
 git push origin main "v$VERSION"
 gh release create "v$VERSION" --title "UniOS $VERSION" --notes-file "$NOTES" \
-  $(printf 'dist/%s ' "${FILES[@]}") dist/SHA256SUMS.txt \
+  $(printf 'dist/%s ' "${FILES[@]}") dist/SHA256SUMS.txt dist/SHA256SUMS.txt.sig \
   dist/latest.yml dist/latest-linux.yml dist/latest-mac.yml dist/*.blockmap

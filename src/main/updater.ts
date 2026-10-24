@@ -14,7 +14,8 @@ import type { ReadableStream as WebReadableStream } from 'node:stream/web'
 import { app, net, shell } from 'electron'
 import electronUpdater from 'electron-updater'
 import { macSwapScript } from '@core/macSwap'
-import { compareVersions, parseChecksums, parseRelease, type ReleaseInfo, UPDATE_REPO, updateAssetFor, type UpdatePlan } from '@core/update'
+import { compareVersions, parseChecksums, parseRelease, type ReleaseInfo, UPDATE_PUBLIC_KEY, UPDATE_REPO, updateAssetFor, type UpdatePlan } from '@core/update'
+import { isTrustedDownload, verifySignedChecksums } from '@core/updateSignature'
 import type { AppContext } from './context'
 
 export type UpdateState =
@@ -140,8 +141,14 @@ export class Updater {
 
   private async downloadMac(release: ReleaseInfo, asset: { name: string; url: string; size: number }): Promise<void> {
     const sumsAsset = release.assets.find((a) => a.name === 'SHA256SUMS.txt')
-    if (!sumsAsset) throw new Error('the release has no checksums')
-    const expected = parseChecksums(await (await net.fetch(sumsAsset.url)).text()).get(asset.name)
+    const sigAsset = release.assets.find((a) => a.name === 'SHA256SUMS.txt.sig')
+    if (!sumsAsset || !sigAsset) throw new Error('the release is not signed')
+    const trusted = (url: string) => !!FEED || isTrustedDownload(url)
+    if (![sumsAsset, sigAsset, asset].every((a) => trusted(a.url))) throw new Error('the download does not come from the UniOS releases on GitHub')
+    const sumsText = await (await net.fetch(sumsAsset.url)).text()
+    const signature = await (await net.fetch(sigAsset.url)).text()
+    if (!verifySignedChecksums(sumsText, signature, UPDATE_PUBLIC_KEY)) throw new Error('the release signature is not valid — the update was not installed')
+    const expected = parseChecksums(sumsText).get(asset.name)
     if (!expected) throw new Error(`no checksum for ${asset.name}`)
 
     const dir = join(tmpdir(), `unios-update-${release.version}`)
@@ -174,7 +181,20 @@ export class Updater {
     })
     const appName = readdirSync(staging).find((n) => n.endsWith('.app'))
     if (!appName || !existsSync(join(staging, appName, 'Contents', 'MacOS', 'UniOS'))) throw new Error('the update package is incomplete')
-    this.stagedApp = join(staging, appName)
+    const staged = join(staging, appName)
+    const run = (cmd: string, args: string[]) =>
+      new Promise<string>((ok, fail) => {
+        const p = spawn(cmd, args)
+        let out = ''
+        p.stdout.on('data', (d) => (out += d))
+        p.on('exit', (code) => (code === 0 ? ok(out.trim()) : fail(new Error(`${cmd} failed`))))
+      })
+    const bundleId = await run('/usr/bin/defaults', ['read', join(staged, 'Contents', 'Info.plist'), 'CFBundleIdentifier']).catch(() => '')
+    if (bundleId !== 'de.eventings.unios') throw new Error('the downloaded app is not UniOS')
+    await run('/usr/bin/codesign', ['--verify', '--deep', '--strict', staged]).catch(() => {
+      throw new Error('the downloaded app has a broken code signature')
+    })
+    this.stagedApp = staged
   }
 
   private async downloadWithElectronUpdater(release: ReleaseInfo): Promise<void> {
