@@ -1,8 +1,8 @@
-import { and, asc, eq, isNotNull, isNull, max, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNotNull, isNull, like, max, ne, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import type { Db } from '../db/open'
-import { pages } from '../db/schema'
-import { blocksToText } from '../domain/blocks'
+import { courses, pageLinks, pages } from '../db/schema'
+import { blocksToText, extractPageLinks } from '../domain/blocks'
 import { AppError, notFound, parse } from '../errors'
 import { newId, nowIso } from '../util'
 import * as search from './search'
@@ -39,6 +39,15 @@ export const PagePatch = z.object({
   parentId: z.string().nullish(),
   sortOrder: z.number().optional()
 })
+
+/** Keep the page_links table in sync with the mentions in a page (unknown targets are ignored). */
+function syncLinks(db: Db, fromId: string, content: unknown): void {
+  const targets = extractPageLinks(content).filter((id) => id !== fromId)
+  db.delete(pageLinks).where(eq(pageLinks.fromId, fromId)).run()
+  if (!targets.length) return
+  const existing = db.select({ id: pages.id }).from(pages).where(inArray(pages.id, targets)).all()
+  for (const { id } of existing) db.insert(pageLinks).values({ fromId, toId: id }).onConflictDoNothing().run()
+}
 
 function reindex(db: Db, p: Pick<Page, 'id' | 'courseId' | 'title' | 'contentText' | 'deletedAt'>): void {
   if (p.deletedAt) search.remove(db, 'page', p.id)
@@ -96,6 +105,7 @@ export function create(db: Db, input: z.input<typeof PageCreate>): Page {
     })
     .returning()
     .get()
+  syncLinks(db, row.id, content)
   reindex(db, row)
   return row
 }
@@ -124,6 +134,7 @@ export function updateContent(db: Db, id: string, content: unknown, expectedUpda
       .returning()
       .get()
   })
+  syncLinks(db, id, content)
   reindex(db, row)
   const { content: _c, contentText: _t, ...meta } = row
   return meta
@@ -216,4 +227,42 @@ export function ancestors(db: Db, id: string): Pick<Page, 'id' | 'title' | 'icon
     parentId = p.parentId
   }
   return chain
+}
+
+/** Pages (not in the trash) that mention `id`. */
+export function backlinks(db: Db, id: string): Pick<Page, 'id' | 'title' | 'icon' | 'courseId'>[] {
+  return db
+    .select({ id: pages.id, title: pages.title, icon: pages.icon, courseId: pages.courseId })
+    .from(pageLinks)
+    .innerJoin(pages, eq(pages.id, pageLinks.fromId))
+    .where(and(eq(pageLinks.toId, id), isNull(pages.deletedAt)))
+    .orderBy(asc(pages.title))
+    .all()
+}
+
+export interface PageTitleHit {
+  id: string
+  title: string
+  icon: string | null
+  courseId: string | null
+  courseName: string | null
+}
+
+/** Title search for linking pages (case-insensitive substring, excludes trashed pages). */
+export function searchTitles(db: Db, q: string, opts: { exclude?: string; limit?: number }): PageTitleHit[] {
+  const term = q.trim().toLowerCase().replace(/[%_\\]/g, (c) => `\\${c}`)
+  return db
+    .select({ id: pages.id, title: pages.title, icon: pages.icon, courseId: pages.courseId, courseName: courses.name })
+    .from(pages)
+    .leftJoin(courses, eq(courses.id, pages.courseId))
+    .where(
+      and(
+        isNull(pages.deletedAt),
+        opts.exclude ? ne(pages.id, opts.exclude) : undefined,
+        term ? sql`lower(${pages.title}) LIKE ${`%${term}%`} ESCAPE '\\'` : undefined
+      )
+    )
+    .orderBy(sql`${pages.updatedAt} DESC`)
+    .limit(opts.limit ?? 12)
+    .all()
 }

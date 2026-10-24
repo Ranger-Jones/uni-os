@@ -4,6 +4,7 @@ import { localDateTime } from '../util'
 import * as assignments from '../repo/assignments'
 import * as courses from '../repo/courses'
 import * as events from '../repo/events'
+import * as files from '../repo/files'
 import * as grades from '../repo/grades'
 import * as pages from '../repo/pages'
 import { defineTool, id } from './define'
@@ -13,7 +14,7 @@ const grade = z.number().min(1, 'grade must be between 1.0 and 5.0').max(5, 'gra
 export const writeTools = [
   defineTool({
     name: 'create_page',
-    description: 'Create a note page from Markdown, inside a course (course_id) and optionally below another page (parent_id).',
+    description: 'Create a note page from Markdown, inside a course (course_id) and optionally below another page (parent_id). Link to other pages with [Title](unios://page/<id>).',
     input: z.object({ course_id: z.string().nullable().optional(), parent_id: z.string().optional(), title: z.string().min(1), markdown: z.string() }),
     mutates: true,
     run: async ({ db }, i) => {
@@ -113,6 +114,16 @@ export const writeTools = [
         ? grades.updateComponent(db, existing.id, { grade: i.grade, weight: i.weight, passed: i.passed })
         : grades.createComponent(db, { courseId: i.course_id, name: i.name, weight: i.weight ?? 100, grade: i.grade, passed: i.passed })
       return { id: c.id, name: c.name, weight: c.weight, grade: c.grade, passed: c.passed }
+    }
+  }),
+  defineTool({
+    name: 'set_file_tags',
+    description: 'Replace the tags of a course file, e.g. ["lecture"] or ["exercise", "solution"]. Prefer the usual tags: lecture, exercise, solution, notes, exam, literature.',
+    input: z.object({ file_id: id('File'), tags: z.array(z.string()).max(10) }),
+    mutates: true,
+    run: ({ db }, i) => {
+      const f = files.setTags(db, i.file_id, i.tags)
+      return { id: f.id, name: f.name, tags: f.tags }
     }
   })
 ]

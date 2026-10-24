@@ -189,5 +189,14 @@ export const migrations: string[] = [
   CREATE TRIGGER assignments_delete_search AFTER DELETE ON assignments BEGIN
     DELETE FROM search_fts WHERE entity_type = 'assignment' AND entity_id = old.id;
   END;
+  `,
+  /* 2: page links (mentions) and file tags */ `
+  CREATE TABLE page_links (
+    from_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+    to_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+    PRIMARY KEY (from_id, to_id)
+  );
+  CREATE INDEX page_links_to ON page_links(to_id);
+  ALTER TABLE files ADD COLUMN tags TEXT NOT NULL DEFAULT '[]';
   `
 ]

@@ -8,26 +8,53 @@ type Json = Record<string, any> // eslint-disable-line @typescript-eslint/no-exp
 const LATEX = new Set(['latex', 'tex', 'math', 'katex'])
 const codeText = (content: unknown) => (Array.isArray(content) ? content.map((c: Json) => c.text ?? '').join('') : '')
 
-/** The app's formula block ("math") is not part of the default schema: it travels as a ```latex code block. */
-const mathToCode = (blocks: Json[]): Json[] =>
+// BlockNote's markdown converter drops links with unknown protocols, so page links pass through it with a
+// placeholder on the reserved .invalid TLD and are rewritten to unios://page/<id> outside of it.
+const PLACEHOLDER = 'https://unios.invalid/page/'
+const PAGE_LINK = /^https:\/\/unios\.invalid\/page\/([\w-]+)$/
+
+/** Page mentions travel as [Title](unios://page/<id>) links. */
+const mapInline = (content: unknown, fn: (c: Json) => Json): unknown => {
+  if (Array.isArray(content)) return content.map((c: Json) => fn(c))
+  if (content && typeof content === 'object' && (content as Json).type === 'tableContent') {
+    const t = content as Json
+    return { ...t, rows: t.rows.map((r: Json) => ({ ...r, cells: r.cells.map((cell: Json) => (Array.isArray(cell) ? cell.map(fn) : { ...cell, content: (cell.content ?? []).map(fn) })) })) }
+  }
+  return content
+}
+const mentionToLink = (c: Json): Json =>
+  c.type === 'pageMention' ? { type: 'link', href: `${PLACEHOLDER}${c.props?.pageId}`, content: [{ type: 'text', text: c.props?.title || 'Untitled', styles: {} }] } : c
+const linkToMention = (c: Json): Json => {
+  const m = c.type === 'link' && typeof c.href === 'string' ? PAGE_LINK.exec(c.href) : null
+  return m ? { type: 'pageMention', props: { pageId: m[1], title: codeText(c.content) } } : c
+}
+
+/**
+ * App-specific nodes are not part of the default schema used headlessly:
+ * formula blocks ("math") travel as ```latex code blocks and page mentions as unios://page links.
+ */
+const toPortable = (blocks: Json[]): Json[] =>
   blocks.map((b) => ({
-    ...(b.type === 'math' ? { ...b, type: 'codeBlock', props: { language: 'latex' }, content: [{ type: 'text', text: b.props?.latex ?? '', styles: {} }] } : b),
-    children: Array.isArray(b.children) ? mathToCode(b.children) : []
+    ...(b.type === 'math' ? { ...b, type: 'codeBlock', props: { language: 'latex' }, content: [{ type: 'text', text: b.props?.latex ?? '', styles: {} }] } : { ...b, content: mapInline(b.content, mentionToLink) }),
+    children: Array.isArray(b.children) ? toPortable(b.children) : []
   }))
 
-const codeToMath = (blocks: Json[]): Json[] =>
+const fromPortable = (blocks: Json[]): Json[] =>
   blocks.map((b) => ({
-    ...(b.type === 'codeBlock' && LATEX.has(String(b.props?.language ?? '').toLowerCase()) ? { id: b.id, type: 'math', props: { latex: codeText(b.content).trim() }, children: [] } : b),
-    children: Array.isArray(b.children) ? codeToMath(b.children) : []
+    ...(b.type === 'codeBlock' && LATEX.has(String(b.props?.language ?? '').toLowerCase())
+      ? { id: b.id, type: 'math', props: { latex: codeText(b.content).trim() }, children: [] }
+      : { ...b, content: mapInline(b.content, linkToMention) }),
+    children: Array.isArray(b.children) ? fromPortable(b.children) : []
   }))
 
 export async function markdownToBlocks(md: string): Promise<unknown[]> {
   if (!md.trim()) return []
-  return codeToMath((await getEditor().tryParseMarkdownToBlocks(md)) as Json[])
+  md = md.replace(/\]\(unios:\/\/page\/([\w-]+)\)/g, `](${PLACEHOLDER}$1)`)
+  return fromPortable((await getEditor().tryParseMarkdownToBlocks(md)) as Json[])
 }
 
 export async function blocksToMarkdown(blocks: unknown[]): Promise<string> {
   if (blocks.length === 0) return ''
-  const out = await getEditor().blocksToMarkdownLossy(mathToCode(blocks as Json[]) as never)
-  return out.trim()
+  const out = await getEditor().blocksToMarkdownLossy(toPortable(blocks as Json[]) as never)
+  return out.split(PLACEHOLDER).join('unios://page/').trim()
 }

@@ -9,6 +9,7 @@ function inlineText(content: unknown): string {
     .map((c) => {
       if (!isObj(c)) return ''
       if (typeof c.text === 'string') return c.text
+      if (c.type === 'pageMention' && isObj(c.props) && typeof c.props.title === 'string') return c.props.title
       if (Array.isArray(c.content)) return inlineText(c.content)
       return ''
     })
@@ -48,4 +49,18 @@ export function blocksToText(blocks: unknown): string {
 export function mergeBlocks(local: unknown[], remote: unknown[]): unknown[] {
   const ids = new Set(local.map((b) => (isObj(b) ? b.id : undefined)).filter(Boolean))
   return [...local, ...remote.filter((b) => !(isObj(b) && b.id && ids.has(b.id)))]
+}
+
+function collectLinks(node: unknown, out: Set<string>): void {
+  if (Array.isArray(node)) return node.forEach((n) => collectLinks(n, out))
+  if (!isObj(node)) return
+  if (node.type === 'pageMention' && isObj(node.props) && typeof node.props.pageId === 'string') out.add(node.props.pageId)
+  for (const key of ['content', 'children', 'rows', 'cells']) if (key in node) collectLinks(node[key], out)
+}
+
+/** Ids of all pages mentioned anywhere in a document. */
+export function extractPageLinks(blocks: unknown): string[] {
+  const out = new Set<string>()
+  collectLinks(blocks, out)
+  return [...out]
 }

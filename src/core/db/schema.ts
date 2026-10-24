@@ -1,4 +1,4 @@
-import { integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 export const COURSE_COLORS = ['gray', 'red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink'] as const
 
@@ -105,6 +105,7 @@ export const files = sqliteTable('files', {
   size: integer('size').notNull(),
   text: text('text'),
   pageCount: integer('page_count'),
+  tags: text('tags', { mode: 'json' }).$type<string[]>().notNull().default([]),
   ...timestamps
 })
 
@@ -150,3 +151,12 @@ export const chatMessages = sqliteTable('chat_messages', {
   content: text('content').notNull(),
   createdAt: text('created_at').notNull()
 })
+
+export const pageLinks = sqliteTable(
+  'page_links',
+  {
+    fromId: text('from_id').notNull(),
+    toId: text('to_id').notNull()
+  },
+  (t) => [primaryKey({ columns: [t.fromId, t.toId] })]
+)

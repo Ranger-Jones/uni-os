@@ -66,7 +66,7 @@ export const readTools = [
         open_assignments: assignments.list(db, { courseId: c.id, status: assignments.OPEN_STATUS }).map((a) => ({ id: a.id, title: a.title, due_at: a.dueAt, status: a.status })),
         upcoming_events: events.list(db, { from: today, to: addDays(today, 180), courseId: c.id }).map((e) => ({ id: e.id, title: e.title, kind: e.kind, starts_at: e.startsAt })),
         pages: pages.list(db, { courseId: c.id }).map((p) => ({ id: p.id, title: p.title || 'Untitled', parent_id: p.parentId })),
-        files: files.list(db, { courseId: c.id }).map((f) => ({ id: f.id, name: f.name, has_text: f.hasText, pages: f.pageCount }))
+        files: files.list(db, { courseId: c.id }).map((f) => ({ id: f.id, name: f.name, tags: f.tags, has_text: f.hasText, pages: f.pageCount }))
       }
     }
   }),
@@ -79,12 +79,18 @@ export const readTools = [
   }),
   defineTool({
     name: 'read_page',
-    description: 'Read a note page as Markdown.',
+    description: 'Read a note page as Markdown. Links to other pages appear as [Title](unios://page/<id>); linked_from lists pages that link here.',
     input: z.object({ page_id: id('Page') }),
     mutates: false,
     run: async ({ db }, i) => {
       const p = pages.get(db, i.page_id)
-      return { id: p.id, title: p.title, course_id: p.courseId, markdown: await blocksToMarkdown(JSON.parse(p.content) as unknown[]) }
+      return {
+        id: p.id,
+        title: p.title,
+        course_id: p.courseId,
+        markdown: await blocksToMarkdown(JSON.parse(p.content) as unknown[]),
+        linked_from: pages.backlinks(db, p.id).map((b) => ({ id: b.id, title: b.title || 'Untitled' }))
+      }
     }
   }),
   defineTool({
@@ -154,12 +160,12 @@ export const readTools = [
   }),
   defineTool({
     name: 'list_files',
-    description: 'List files (lecture slides, scripts, sheets) attached to a course.',
-    input: z.object({ course_id: id('Course') }),
+    description: 'List files (lecture slides, exercise sheets, …) of a course with their tags. Filter with tag, e.g. "lecture", "exercise", "solution", "notes", "exam", "literature".',
+    input: z.object({ course_id: id('Course'), tag: z.string().optional() }),
     mutates: false,
     run: ({ db }, i) => {
       courses.get(db, i.course_id)
-      return files.list(db, { courseId: i.course_id }).map((f) => ({ id: f.id, name: f.name, type: f.mime, has_text: f.hasText, pages: f.pageCount }))
+      return files.list(db, { courseId: i.course_id, tag: i.tag }).map((f) => ({ id: f.id, name: f.name, tags: f.tags, type: f.mime, has_text: f.hasText, pages: f.pageCount }))
     }
   }),
   defineTool({
