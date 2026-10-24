@@ -16,6 +16,7 @@ import type { ChatService } from './llm/chat'
 import { ANTHROPIC_MODELS } from './llm/anthropic'
 import { OPENAI_MODEL_SUGGESTIONS } from './llm/openai'
 import { keyStatus, setKey, type Provider } from './secrets'
+import { installIntoClaudeDesktop, mcpSetupInfo } from './mcpConfig'
 import * as chats from '@core/repo/chats'
 
 /** Electron-only capabilities the router needs; injected so this file stays importable as a type. */
@@ -108,6 +109,11 @@ export function createRouter(ctx: AppContext, host: Host, chat: ChatService) {
       setKey: ({ provider, key }: { provider: Provider; key: string | null }) => {
         setKey(provider, key)
         return keyStatus()
+      },
+      mcpInfo: () => mcpSetupInfo(),
+      installMcp: () => {
+        installIntoClaudeDesktop()
+        return mcpSetupInfo()
       },
       models: () => ({ anthropic: ANTHROPIC_MODELS, openai: OPENAI_MODEL_SUGGESTIONS }),
       threads: () => chats.listThreads(ctx.db),

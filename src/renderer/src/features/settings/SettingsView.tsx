@@ -82,6 +82,10 @@ export function SettingsView() {
         <AiSettings settings={s} onChange={(patch) => update.mutate(patch)} />
       </Section>
 
+      <Section title="Connect Claude">
+        <McpSettings />
+      </Section>
+
       <Section title="Appearance">
         <Row label="Theme">
           <div className="flex rounded-md border border-line p-0.5">
@@ -198,6 +202,54 @@ function AiSettings({ settings, onChange }: { settings: Settings; onChange: (p: 
           ))}
         </datalist>
       </Row>
+    </>
+  )
+}
+
+function CopyBlock({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <div className="relative">
+      <pre className="selectable max-h-48 overflow-auto rounded-lg bg-hover p-3 pr-16 font-mono text-[11.5px] leading-relaxed whitespace-pre-wrap break-all">{text}</pre>
+      <Button
+        size="sm"
+        variant="secondary"
+        className="absolute top-2 right-2"
+        onClick={() => {
+          void navigator.clipboard.writeText(text)
+          setCopied(true)
+          setTimeout(() => setCopied(false), 1500)
+        }}
+      >
+        {copied ? 'Copied' : 'Copy'}
+      </Button>
+    </div>
+  )
+}
+
+function McpSettings() {
+  const info = useQuery({ queryKey: ['ai', 'mcp'], queryFn: () => api.ai.mcpInfo() })
+  const install = useApiMutation(() => api.ai.installMcp(), { success: 'Added to Claude Desktop. Restart Claude Desktop to use UniOS.' })
+  if (!info.data) return null
+  return (
+    <>
+      <p className="-mt-2 text-[13px] text-muted">
+        Let Claude Desktop or Claude Code read and update your courses, notes, assignments and grades through the UniOS MCP server. It works even when UniOS is closed.
+        {!info.data.packaged && ' You are running a development build — install the app first so the path below stays valid.'}
+      </p>
+      <Row label="Claude Desktop" hint={info.data.desktopInstalled ? 'UniOS is set up. Restart Claude Desktop after changes.' : 'Adds UniOS to claude_desktop_config.json and keeps a backup of the old file.'}>
+        <Button size="sm" variant={info.data.desktopInstalled ? 'ghost' : 'primary'} onClick={() => install.mutate(undefined)}>
+          {info.data.desktopInstalled ? 'Reinstall' : 'Add to Claude Desktop'}
+        </Button>
+      </Row>
+      <div>
+        <div className="mb-1.5 text-sm">Claude Code</div>
+        <CopyBlock text={info.data.claudeCode} />
+      </div>
+      <div>
+        <div className="mb-1.5 text-sm">Manual configuration</div>
+        <CopyBlock text={info.data.desktopConfig} />
+      </div>
     </>
   )
 }
