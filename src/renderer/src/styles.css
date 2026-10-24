@@ -1,0 +1,118 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/source-serif-4';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'Source Serif 4 Variable', ui-serif, Georgia, serif;
+
+  --color-paper: var(--paper);
+  --color-side: var(--side);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-hover: var(--hover);
+  --color-active: var(--active);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-raised: var(--raised);
+}
+
+:root {
+  --paper: #fbfbfa;
+  --side: #f4f4f2;
+  --raised: #ffffff;
+  --ink: #2f3437;
+  --muted: #787774;
+  --faint: #a5a5a2;
+  --line: #e7e7e4;
+  --hover: rgba(55, 53, 47, 0.06);
+  --active: rgba(55, 53, 47, 0.1);
+  --accent: #2e5aac;
+  --accent-soft: rgba(46, 90, 172, 0.1);
+  --danger: #c4413a;
+  --ok: #3a7d55;
+  --warn: #b7791f;
+  color-scheme: light;
+}
+
+.dark {
+  --paper: #191919;
+  --side: #202020;
+  --raised: #252525;
+  --ink: #e6e6e4;
+  --muted: #9b9b98;
+  --faint: #6b6b68;
+  --line: #2f2f2f;
+  --hover: rgba(255, 255, 255, 0.055);
+  --active: rgba(255, 255, 255, 0.09);
+  --accent: #7ea6f0;
+  --accent-soft: rgba(126, 166, 240, 0.14);
+  --danger: #e5675f;
+  --ok: #6dbb8a;
+  --warn: #e0a84a;
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+input,
+textarea,
+[contenteditable='true'],
+.selectable {
+  user-select: text;
+  cursor: auto;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+.drag {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--active);
+  border-radius: 10px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

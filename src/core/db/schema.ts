@@ -1,5 +1,7 @@
 import { integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
+export const COURSE_COLORS = ['gray', 'red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink'] as const
+
 const id = () => text('id').primaryKey()
 const timestamps = {
   createdAt: text('created_at').notNull(),
@@ -21,7 +23,7 @@ export const courses = sqliteTable('courses', {
   name: text('name').notNull(),
   code: text('code'),
   ects: real('ects').notNull().default(0),
-  color: text('color').notNull().default('blue'),
+  color: text('color', { enum: COURSE_COLORS }).notNull().default('blue'),
   icon: text('icon'),
   lecturer: text('lecturer'),
   location: text('location'),

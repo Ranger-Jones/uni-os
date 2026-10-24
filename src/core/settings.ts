@@ -13,7 +13,7 @@ export interface Settings {
 }
 
 export const defaultSettings = (): Settings => ({
-  dataDir: join(homedir(), 'UniOS'),
+  dataDir: process.env.UNIOS_DATA_DIR ?? join(homedir(), 'UniOS'),
   backupDir: null,
   theme: 'system',
   defaultProvider: 'anthropic',

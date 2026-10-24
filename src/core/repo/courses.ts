@@ -1,13 +1,13 @@
 import { and, asc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import type { Db } from '../db/open'
-import { courses, semesters } from '../db/schema'
+import { COURSE_COLORS, courses, semesters } from '../db/schema'
 import { notFound, parse } from '../errors'
 import { newId, nowIso } from '../util'
 
 export type Course = typeof courses.$inferSelect
 
-export const COURSE_COLORS = ['gray', 'red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink'] as const
+export { COURSE_COLORS }
 
 export const CourseInput = z.object({
   semesterId: z.string().min(1),
