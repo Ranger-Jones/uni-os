@@ -82,7 +82,7 @@ export function createRouter(ctx: AppContext, host: Host, chat: ChatService) {
       get: ({ id }: { id: string }) => pages.get(ctx.db, id),
       ancestors: ({ id }: { id: string }) => pages.ancestors(ctx.db, id),
       create: (input: Parameters<typeof pages.create>[1]) => pages.create(ctx.db, input),
-      updateContent: ({ id, content }: { id: string; content: unknown[] }) => pages.updateContent(ctx.db, id, content),
+      updateContent: ({ id, content, expectedUpdatedAt }: { id: string; content: unknown[]; expectedUpdatedAt?: string }) => pages.updateContent(ctx.db, id, content, expectedUpdatedAt),
       update: ({ id, patch }: Patch<Parameters<typeof pages.update>[2]>) => pages.update(ctx.db, id, patch),
       duplicate: ({ id }: { id: string }) => pages.duplicate(ctx.db, id),
       trash: ({ id }: { id: string }) => pages.trash(ctx.db, id),

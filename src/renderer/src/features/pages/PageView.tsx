@@ -6,7 +6,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { EmojiPicker } from '../../components/ui/EmojiPicker'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Menu, MenuContent, MenuItem, MenuTrigger } from '../../components/ui/Menu'
-import { api } from '../../lib/api'
+import { api, ApiError } from '../../lib/api'
+import { createAutosaver } from '@core/autosave'
+import { mergeBlocks } from '@core/domain/blocks'
+import { toast } from 'sonner'
 import { courseColor } from '../../lib/colors'
 import { queryClient, useCourse, usePage, usePageAncestors } from '../../lib/queries'
 import { pageRoute } from '../../router'
@@ -33,25 +36,64 @@ function PageEditor({ page }: { page: PageData }) {
   const ancestors = usePageAncestors(page.id)
   const editorRef = useRef<EditorHandle>(null)
   const [title, setTitle] = useState(page.title)
-  const pending = useRef<unknown[] | null>(null)
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const base = useRef(page.updatedAt)
   const ownVersions = useRef(new Set<string>([page.updatedAt]))
+  const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error'>('saved')
   const initialContent = useMemo(() => JSON.parse(page.content) as unknown[], []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const flush = useCallback(async () => {
-    clearTimeout(timer.current)
-    const blocks = pending.current
-    if (!blocks) return
-    pending.current = null
-    const meta = await api.pages.updateContent({ id: page.id, content: blocks })
-    ownVersions.current.add(meta.updatedAt)
-    queryClient.setQueryData(['page', page.id], (old: PageData | undefined) => (old ? { ...old, updatedAt: meta.updatedAt, content: JSON.stringify(blocks) } : old))
-  }, [page.id])
+  const saver = useMemo(
+    () =>
+      createAutosaver<unknown[]>({
+        delay: SAVE_DELAY,
+        save: async (blocks) => {
+          setSaveState('saving')
+          let content = blocks
+          for (let attempt = 0; ; attempt++) {
+            try {
+              const meta = await api.pages.updateContent({ id: page.id, content, expectedUpdatedAt: base.current })
+              base.current = meta.updatedAt
+              ownVersions.current.add(meta.updatedAt)
+              queryClient.setQueryData(['page', page.id], (old: PageData | undefined) => (old ? { ...old, updatedAt: meta.updatedAt, content: JSON.stringify(content) } : old))
+              return
+            } catch (err) {
+              if (!(err instanceof ApiError && err.code === 'CONFLICT') || attempt >= 2) throw err
+              // Someone else (assistant, Claude via MCP) changed the page: keep both versions.
+              const remote = await api.pages.get({ id: page.id })
+              const remoteBlocks = JSON.parse(remote.content) as unknown[]
+              const merged = mergeBlocks(content, remoteBlocks)
+              editorRef.current?.appendBlocks(merged.slice(content.length))
+              content = merged
+              base.current = remote.updatedAt
+              ownVersions.current.add(remote.updatedAt)
+            }
+          }
+        },
+        onSaved: () => setSaveState('saved'),
+        onError: (err) => {
+          setSaveState('error')
+          toast.error(`Could not save “${page.title || 'Untitled'}”: ${err instanceof Error ? err.message : String(err)}. Retrying…`, { id: `save-${page.id}` })
+        }
+      }),
+    [page.id] // eslint-disable-line react-hooks/exhaustive-deps
+  )
 
-  useEffect(() => () => void flush(), [flush])
+  const flush = useCallback(() => saver.flush(), [saver])
+
+  useEffect(
+    () => () => {
+      saver.flush().catch(() => toast.error('Your latest changes to this page could not be saved.'))
+      saver.dispose()
+    },
+    [saver]
+  )
   useEffect(() => setTitle(page.title), [page.title])
 
   const external = ownVersions.current.has(page.updatedAt) ? undefined : { content: JSON.parse(page.content) as unknown[], version: page.updatedAt }
+
+  const onExternalApplied = useCallback((version: string) => {
+    base.current = version
+    ownVersions.current.add(version)
+  }, [])
 
   const saveTitle = async () => {
     if (title === page.title) return
@@ -69,25 +111,28 @@ function PageEditor({ page }: { page: PageData }) {
   return (
     <div className="mx-auto max-w-3xl px-16 pt-12 pb-40">
       <div className="no-drag mb-8 flex items-center justify-between gap-4">
-        <Breadcrumbs courseId={page.courseId} ancestors={ancestors.data ?? []} />
+        <div className="flex min-w-0 items-center gap-3">
+          <Breadcrumbs courseId={page.courseId} ancestors={ancestors.data ?? []} />
+          {saveState !== 'saved' && <span className={saveState === 'error' ? 'text-[12px] text-danger' : 'text-[12px] text-faint'}>{saveState === 'error' ? 'Not saved' : 'Saving…'}</span>}
+        </div>
         <Menu>
           <MenuTrigger className="rounded-md p-1 text-muted hover:bg-hover hover:text-ink" aria-label="Page actions">
             <MoreHorizontal size={18} />
           </MenuTrigger>
           <MenuContent align="end">
-            <MenuItem icon={<Sparkles size={14} />} onSelect={() => void flush().then(() => ask(`Summarize my note page "${title || 'Untitled'}" in a few bullet points and point out anything that seems unclear or missing.`, page.courseId))}>
+            <MenuItem icon={<Sparkles size={14} />} onSelect={() => void flush().catch(() => {}).then(() => ask(`Summarize my note page "${title || 'Untitled'}" in a few bullet points and point out anything that seems unclear or missing.`, page.courseId))}>
               Summarize with assistant
             </MenuItem>
-            <MenuItem icon={<Layers size={14} />} onSelect={() => void flush().then(() => setGenerate(true))}>
+            <MenuItem icon={<Layers size={14} />} onSelect={() => void flush().catch(() => {}).then(() => setGenerate(true))}>
               Generate flashcards
             </MenuItem>
-            <MenuItem icon={<MessageSquare size={14} />} onSelect={() => void flush().then(() => ask(`About my note page "${title || 'Untitled'}": `, page.courseId))}>
+            <MenuItem icon={<MessageSquare size={14} />} onSelect={() => void flush().catch(() => {}).then(() => ask(`About my note page "${title || 'Untitled'}": `, page.courseId))}>
               Ask about this page
             </MenuItem>
-            <MenuItem icon={<Copy size={14} />} onSelect={() => void flush().then(() => actions.duplicate(page.id))}>
+            <MenuItem icon={<Copy size={14} />} onSelect={() => void flush().catch(() => {}).then(() => actions.duplicate(page.id))}>
               Duplicate
             </MenuItem>
-            <MenuItem danger icon={<Trash2 size={14} />} onSelect={() => void flush().then(() => actions.trash(page.id, title))}>
+            <MenuItem danger icon={<Trash2 size={14} />} onSelect={() => void flush().catch(() => {}).then(() => actions.trash(page.id, title))}>
               Move to trash
             </MenuItem>
           </MenuContent>
@@ -137,10 +182,10 @@ function PageEditor({ page }: { page: PageData }) {
           pageId={page.id}
           initialContent={initialContent}
           externalContent={external}
+          onExternalApplied={onExternalApplied}
           onChange={(blocks) => {
-            pending.current = blocks
-            clearTimeout(timer.current)
-            timer.current = setTimeout(() => void flush(), SAVE_DELAY)
+            setSaveState('saving')
+            saver.schedule(blocks)
           }}
         />
       </div>

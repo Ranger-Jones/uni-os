@@ -86,3 +86,10 @@ test('get_schedule names courses', async () => {
   const r = await runTool(ctx, 'get_schedule', { from: '2026-10-26', to: '2026-10-26' })
   expect(r.ok && r.result).toEqual([expect.objectContaining({ course: 'Analysis I', date: '2026-10-26', start: '10:00' })])
 })
+
+test('append_to_page keeps content written between read and write (single transaction)', async () => {
+  const p = pages.create(db, { courseId, title: 'T', content: [para('first')] })
+  await runTool(ctx, 'append_to_page', { page_id: p.id, markdown: 'second' })
+  await runTool(ctx, 'append_to_page', { page_id: p.id, markdown: 'third' })
+  expect(pages.get(db, p.id).contentText).toBe('first\nsecond\nthird')
+})

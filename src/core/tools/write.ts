@@ -28,10 +28,14 @@ export const writeTools = [
     input: z.object({ page_id: id('Page'), markdown: z.string().min(1) }),
     mutates: true,
     run: async ({ db }, i) => {
-      const p = pages.get(db, i.page_id)
-      const blocks = [...(JSON.parse(p.content) as unknown[]), ...(await markdownToBlocks(i.markdown))]
-      pages.updateContent(db, p.id, blocks)
-      return { id: p.id, appended: true }
+      pages.get(db, i.page_id)
+      const added = await markdownToBlocks(i.markdown)
+      // Read and write in one synchronous transaction so concurrent edits are not overwritten.
+      db.transaction((tx) => {
+        const p = pages.get(tx as unknown as typeof db, i.page_id)
+        pages.updateContent(tx as unknown as typeof db, p.id, [...(JSON.parse(p.content) as unknown[]), ...added], p.updatedAt)
+      })
+      return { id: i.page_id, appended: true }
     }
   }),
   defineTool({

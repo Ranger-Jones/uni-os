@@ -100,15 +100,30 @@ export function create(db: Db, input: z.input<typeof PageCreate>): Page {
   return row
 }
 
-export function updateContent(db: Db, id: string, content: unknown): PageMeta {
+/** Strictly increasing timestamp, so two writes in the same millisecond still get different versions. */
+function nextVersion(prev: string): string {
+  const now = Date.now()
+  const p = Date.parse(prev)
+  return new Date(Number.isNaN(p) || now > p ? now : p + 1).toISOString()
+}
+
+/**
+ * Replace a page's blocks. With `expectedUpdatedAt`, the write only happens if nobody else (assistant, MCP,
+ * another view) changed the page since that version; otherwise a CONFLICT error is thrown.
+ */
+export function updateContent(db: Db, id: string, content: unknown, expectedUpdatedAt?: string): PageMeta {
   if (!Array.isArray(content)) throw new AppError('VALIDATION', 'content must be an array of blocks')
-  const row = db
-    .update(pages)
-    .set({ content: JSON.stringify(content), contentText: blocksToText(content), updatedAt: nowIso() })
-    .where(eq(pages.id, id))
-    .returning()
-    .get()
-  if (!row) throw notFound('Page')
+  const row = db.transaction((tx) => {
+    const current = tx.select({ updatedAt: pages.updatedAt }).from(pages).where(eq(pages.id, id)).get()
+    if (!current) throw notFound('Page')
+    if (expectedUpdatedAt && current.updatedAt !== expectedUpdatedAt) throw new AppError('CONFLICT', 'This page was changed elsewhere.')
+    return tx
+      .update(pages)
+      .set({ content: JSON.stringify(content), contentText: blocksToText(content), updatedAt: nextVersion(current.updatedAt) })
+      .where(eq(pages.id, id))
+      .returning()
+      .get()
+  })
   reindex(db, row)
   const { content: _c, contentText: _t, ...meta } = row
   return meta

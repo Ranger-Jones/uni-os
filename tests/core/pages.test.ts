@@ -125,3 +125,21 @@ test('moving a page to the top level of another course moves its subtree to that
 function search_course(id: string) {
   return search.query(db, 'B').find((h) => h.entityId === id)?.courseId
 }
+
+test('updateContent with a stale expected version is rejected as a conflict', async () => {
+  const p = pages.create(db, { courseId, title: 'Shared' })
+  const v1 = pages.updateContent(db, p.id, [para('mine')], p.updatedAt)
+  await new Promise((r) => setTimeout(r, 5))
+  pages.updateContent(db, p.id, [para('mine'), para('from Claude')]) // foreign write without version
+  expect(() => pages.updateContent(db, p.id, [para('mine edited')], v1.updatedAt)).toThrow(/changed elsewhere/i)
+  expect(pages.get(db, p.id).contentText).toContain('from Claude')
+})
+
+test('mergeBlocks keeps local edits and adds blocks that only exist remotely', async () => {
+  const { mergeBlocks } = await import('@core/domain/blocks')
+  const a = { ...para('A'), id: 'a' }
+  const b = { ...para('B local'), id: 'b' }
+  const remoteB = { ...para('B remote'), id: 'b' }
+  const c = { ...para('C new'), id: 'c' }
+  expect(mergeBlocks([a, b], [a, remoteB, c])).toEqual([a, b, c])
+})

@@ -43,3 +43,9 @@ export function blocksToText(blocks: unknown): string {
   collect(blocks, out)
   return out.join('\n')
 }
+
+/** Local document plus any top-level blocks that only exist in the remote version (appended in remote order). */
+export function mergeBlocks(local: unknown[], remote: unknown[]): unknown[] {
+  const ids = new Set(local.map((b) => (isObj(b) ? b.id : undefined)).filter(Boolean))
+  return [...local, ...remote.filter((b) => !(isObj(b) && b.id && ids.has(b.id)))]
+}
