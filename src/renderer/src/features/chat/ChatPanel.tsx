@@ -8,7 +8,7 @@ import { useHasKey } from './ChatView'
 import { Conversation } from './Conversation'
 import { useChat } from './useChat'
 
-/** Assistant side panel (⌘J), available on every screen. */
+/** Assistant side panel (⌘J / Ctrl+J), available on every screen. */
 export function ChatPanel() {
   const { chatThreadId, setChatThreadId, setChatOpen, chatDraft } = useUi()
   const navigate = useNavigate()

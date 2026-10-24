@@ -1,3 +1,6 @@
+import { join } from 'node:path'
+import { appDataRoot } from '../settings'
+
 export interface McpServerEntry {
   command: string
   args: string[]
@@ -18,9 +21,13 @@ export function mergeClaudeDesktopConfig(existing: string | null, entry: McpServ
   return JSON.stringify({ ...cfg, mcpServers: { ...servers, unios: entry } }, null, 2)
 }
 
-const q = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`
+const q = (s: string) => (process.platform === 'win32' ? `"${s.replace(/"/g, '\\"')}"` : `'${s.replace(/'/g, `'\\''`)}'`)
 
 export function claudeCodeCommand(entry: McpServerEntry): string {
   const env = Object.entries(entry.env).map(([k, v]) => `-e ${k}=${q(v)}`).join(' ')
   return `claude mcp add unios --scope user ${env} -- ${[entry.command, ...entry.args].map(q).join(' ')}`
 }
+
+/** claude_desktop_config.json location on each OS. */
+export const claudeDesktopConfigPath = (platform: NodeJS.Platform, home: string, env: Record<string, string | undefined>): string =>
+  join(appDataRoot(platform, home, env), 'Claude', 'claude_desktop_config.json')

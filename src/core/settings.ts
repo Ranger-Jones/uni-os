@@ -22,9 +22,19 @@ export const defaultSettings = (): Settings => ({
   lastBackupAt: null
 })
 
+type Env = Record<string, string | undefined>
+
+/** Per-OS application data root (what Electron calls appData). */
+export function appDataRoot(platform: NodeJS.Platform, home: string, env: Env): string {
+  if (platform === 'darwin') return join(home, 'Library', 'Application Support')
+  if (platform === 'win32') return env.APPDATA ?? join(home, 'AppData', 'Roaming')
+  return env.XDG_CONFIG_HOME ?? join(home, '.config')
+}
+
+export const userDataDirFor = (platform: NodeJS.Platform, home: string, env: Env): string => env.UNIOS_USER_DATA ?? join(appDataRoot(platform, home, env), 'UniOS')
+
 /** Where the Electron app keeps settings.json (also read by the MCP server). */
-export const defaultUserDataDir = (): string =>
-  process.env.UNIOS_USER_DATA ?? join(homedir(), 'Library', 'Application Support', 'UniOS')
+export const defaultUserDataDir = (): string => userDataDirFor(process.platform, homedir(), process.env)
 
 export function readSettings(file: string): Settings {
   const defaults = defaultSettings()

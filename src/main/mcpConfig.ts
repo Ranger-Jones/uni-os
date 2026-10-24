@@ -2,9 +2,9 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { app } from 'electron'
-import { claudeCodeCommand, mergeClaudeDesktopConfig, type McpServerEntry } from '@core/mcp/config'
+import { claudeCodeCommand, claudeDesktopConfigPath, mergeClaudeDesktopConfig, type McpServerEntry } from '@core/mcp/config'
 
-const desktopConfigPath = () => join(homedir(), 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json')
+const desktopConfigPath = () => claudeDesktopConfigPath(process.platform, homedir(), process.env)
 
 /** How Claude should start the UniOS MCP server on this machine. */
 export function mcpEntry(): McpServerEntry {

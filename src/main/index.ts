@@ -25,8 +25,8 @@ function createWindow(): BrowserWindow {
     minWidth: 900,
     minHeight: 600,
     show: false,
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 14, y: 14 },
+    // macOS gets the borderless look with inset traffic lights; Windows/Linux keep their native frame.
+    ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 14, y: 14 } } : { autoHideMenuBar: true }),
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#191919' : '#ffffff',
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.cjs'),

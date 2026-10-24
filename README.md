@@ -4,6 +4,22 @@ A Notion-inspired desktop app for organizing university studies — semesters, c
 
 ![icon](build/icon.png)
 
+## Download
+
+Get the latest version from [Releases](https://github.com/Ranger-Jones/uni-os/releases/latest):
+
+| System | File |
+|---|---|
+| macOS (Apple Silicon, M1–M4) | `UniOS-<version>-arm64.dmg` |
+| macOS (Intel) | `UniOS-<version>-x64.dmg` |
+| Windows 10/11 | `UniOS-Setup-<version>-x64.exe` |
+| Linux | `UniOS-<version>-x86_64.AppImage` or `UniOS-<version>-amd64.deb` |
+
+The builds are not signed with a paid Apple/Microsoft certificate, so the first launch needs one extra click:
+- **macOS:** open the app once, then *System Settings → Privacy & Security → Open Anyway*.
+- **Windows:** in the SmartScreen dialog choose *More info → Run anyway*.
+- **Linux (AppImage):** `chmod +x UniOS-*.AppImage`, then run it.
+
 ## Features
 
 - **Courses & semesters**: ECTS, lecturer, colour-coded register tabs, weekly timetable
@@ -28,7 +44,9 @@ pnpm dev          # run the app with hot reload
 pnpm test         # unit + MCP tests (runs under Electron's Node)
 pnpm typecheck
 pnpm test:e2e     # Playwright smoke test against the built app
-pnpm dist         # build dist/UniOS-<version>-arm64.dmg (unsigned)
+pnpm dist         # macOS DMGs (arm64 + x64, ad-hoc signed)
+pnpm dist:win     # Windows installer (NSIS)
+pnpm dist:linux   # Linux AppImage + .deb
 ```
 
 Useful environment variables:
@@ -39,7 +57,6 @@ Useful environment variables:
 | `UNIOS_DATA_DIR` | Default data folder for a fresh install |
 | `UNIOS_FAKE_LLM=1` | Scripted offline assistant for UI work without API costs |
 
-The unsigned DMG needs a right-click → *Open* on first launch (Gatekeeper).
 
 ## Architecture
 

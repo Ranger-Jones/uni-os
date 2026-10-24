@@ -19,6 +19,7 @@ import { api } from '../../lib/api'
 import { cn } from '../../lib/cn'
 import { courseColor } from '../../lib/colors'
 import { useActiveSemester, useApiMutation, useCourses } from '../../lib/queries'
+import { shortcut } from '../../lib/platform'
 import { useUi } from '../../lib/store'
 import { CourseDialog } from '../../features/courses/CourseDialog'
 import { SemesterDialog } from '../../features/courses/SemesterDialog'
@@ -76,7 +77,7 @@ export function Sidebar() {
         <SidebarRow onClick={() => setPaletteOpen(true)} className="text-muted">
           <Search size={15} />
           <span className="flex-1">Search</span>
-          <kbd className="text-[11px] text-faint">⌘K</kbd>
+          <kbd className="text-[11px] text-faint">{shortcut('K')}</kbd>
         </SidebarRow>
         {NAV.map(({ to, label, icon: Icon }) => (
           <Link key={to} to={to}>

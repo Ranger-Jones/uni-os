@@ -1,3 +1,4 @@
+import { isModKey } from '../../lib/platform'
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Command } from 'cmdk'
@@ -50,7 +51,7 @@ export function CommandPalette() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey && e.key.toLowerCase() === 'k') {
+      if (isModKey(e) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         setOpen(!useUi.getState().paletteOpen)
       }

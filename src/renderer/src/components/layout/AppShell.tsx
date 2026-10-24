@@ -1,3 +1,4 @@
+import { isModKey } from '../../lib/platform'
 import { Outlet } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { useUi } from '../../lib/store'
@@ -13,7 +14,7 @@ export function AppShell() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey && e.key.toLowerCase() === 'j') {
+      if (isModKey(e) && e.key.toLowerCase() === 'j') {
         e.preventDefault()
         setChatOpen(!useUi.getState().chatOpen)
       }

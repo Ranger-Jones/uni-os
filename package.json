@@ -4,7 +4,10 @@
   "version": "0.1.0",
   "description": "Notion-inspired study organizer with LLM integration",
   "main": "out/main/index.js",
-  "author": "info@eventings.de",
+  "author": {
+    "name": "UniOS",
+    "email": "info@eventings.de"
+  },
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,8 +16,11 @@
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "ELECTRON_RUN_AS_NODE=1 electron node_modules/vitest/vitest.mjs run",
     "test:e2e": "electron-vite build && playwright test",
-    "dist": "electron-vite build && electron-builder --mac --arm64",
-    "postinstall": "electron-builder install-app-deps"
+    "dist": "electron-vite build && electron-builder --mac",
+    "postinstall": "electron-builder install-app-deps",
+    "dist:win": "electron-vite build && electron-builder --win",
+    "dist:linux": "electron-vite build && electron-builder --linux",
+    "dist:all": "electron-vite build && electron-builder --mac --win --linux"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.1.0",
@@ -72,5 +78,10 @@
     "vite": "^8.3.5",
     "vitest": "^5.0.5",
     "zustand": "^5.0.16"
+  },
+  "homepage": "https://github.com/Ranger-Jones/uni-os",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ranger-Jones/uni-os.git"
   }
 }
