@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
 
 const EVENTS = new Set(['db:changed', 'chat:event', 'menu:command'])
 
@@ -10,6 +10,7 @@ const bridge = {
     ipcRenderer.on(channel, listener)
     return () => ipcRenderer.removeListener(channel, listener)
   },
+  pathForFile: (file: File) => webUtils.getPathForFile(file),
   platform: process.platform
 }
 

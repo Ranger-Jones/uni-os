@@ -1,6 +1,7 @@
 import * as assignments from '@core/repo/assignments'
 import * as courses from '@core/repo/courses'
 import * as events from '@core/repo/events'
+import * as files from '@core/repo/files'
 import * as grades from '@core/repo/grades'
 import * as pages from '@core/repo/pages'
 import * as search from '@core/repo/search'
@@ -8,11 +9,15 @@ import * as semesters from '@core/repo/semesters'
 import * as sessions from '@core/repo/sessions'
 import type { Settings } from '@core/settings'
 import { storeAsset } from './assets'
+import { fileUrl } from './protocol'
 import type { AppContext } from './context'
 
 /** Electron-only capabilities the router needs; injected so this file stays importable as a type. */
 export interface Host {
   chooseFolder(title: string): Promise<string | null>
+  chooseFiles(title: string): Promise<string[]>
+  openPath(path: string): Promise<void>
+  showInFolder(path: string): void
   applyTheme(theme: Settings['theme']): void
   appInfo(): { version: string; userDataDir: string; platform: string }
 }
@@ -45,14 +50,20 @@ export function createRouter(ctx: AppContext, host: Host) {
       current: () => semesters.current(ctx.db),
       create: (input: semesters.SemesterInput) => semesters.create(ctx.db, input),
       update: ({ id, patch }: Patch<Parameters<typeof semesters.update>[2]>) => semesters.update(ctx.db, id, patch),
-      remove: ({ id }: { id: string }) => semesters.remove(ctx.db, id)
+      remove: ({ id }: { id: string }) => {
+        for (const c of courses.list(ctx.db, { semesterId: id, includeArchived: true })) files.purgeCourseFiles(ctx.filesDir, c.id)
+        semesters.remove(ctx.db, id)
+      }
     },
     courses: {
       list: (opts: { semesterId?: string; includeArchived?: boolean } = {}) => courses.list(ctx.db, opts),
       get: ({ id }: { id: string }) => courses.get(ctx.db, id),
       create: (input: courses.CourseInput) => courses.create(ctx.db, input),
       update: ({ id, patch }: Patch<Parameters<typeof courses.update>[2]>) => courses.update(ctx.db, id, patch),
-      remove: ({ id }: { id: string }) => courses.remove(ctx.db, id)
+      remove: ({ id }: { id: string }) => {
+        files.purgeCourseFiles(ctx.filesDir, id)
+        courses.remove(ctx.db, id)
+      }
     },
     pages: {
       tree: ({ courseId }: { courseId: string | null }) => pages.tree(ctx.db, { courseId }),
@@ -69,6 +80,19 @@ export function createRouter(ctx: AppContext, host: Host) {
     },
     search: {
       query: ({ q, courseId }: { q: string; courseId?: string }) => search.query(ctx.db, q, { courseId, limit: 20 })
+    },
+    files: {
+      list: ({ courseId }: { courseId?: string } = {}) => files.list(ctx.db, { courseId }),
+      import: ({ courseId, paths }: { courseId: string; paths: string[] }) => files.importFiles(ctx.db, ctx.filesDir, courseId, paths),
+      importDialog: async ({ courseId }: { courseId: string }) => {
+        const paths = await host.chooseFiles('Add files')
+        return paths.length ? files.importFiles(ctx.db, ctx.filesDir, courseId, paths) : []
+      },
+      rename: ({ id, name }: { id: string; name: string }) => files.rename(ctx.db, id, name),
+      remove: ({ id }: { id: string }) => files.deleteFile(ctx.db, ctx.filesDir, id),
+      open: ({ id }: { id: string }) => host.openPath(files.absolutePath(ctx.db, ctx.filesDir, id)),
+      reveal: ({ id }: { id: string }) => host.showInFolder(files.absolutePath(ctx.db, ctx.filesDir, id)),
+      url: ({ id }: { id: string }) => fileUrl(files.get(ctx.db, id).storedPath)
     },
     assets: {
       store: ({ name, data }: { name: string; data: Uint8Array }) => storeAsset(ctx, name, data)

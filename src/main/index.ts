@@ -55,6 +55,15 @@ app.whenReady().then(() => {
       const r = await dialog.showOpenDialog({ title, properties: ['openDirectory', 'createDirectory'] })
       return r.canceled ? null : (r.filePaths[0] ?? null)
     },
+    chooseFiles: async (title) => {
+      const r = await dialog.showOpenDialog({ title, properties: ['openFile', 'multiSelections'] })
+      return r.canceled ? [] : r.filePaths
+    },
+    openPath: async (path) => {
+      const err = await shell.openPath(path)
+      if (err) throw new Error(err)
+    },
+    showInFolder: (path) => shell.showItemInFolder(path),
     applyTheme: (theme) => {
       nativeTheme.themeSource = theme
     },

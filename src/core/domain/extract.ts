@@ -1,0 +1,44 @@
+// Text extraction for imported files. Failures never throw: the file is kept, just without text.
+import { extractText as pdfText, getDocumentProxy } from 'unpdf'
+
+export interface Extracted {
+  text: string | null
+  pageCount: number | null
+}
+
+const TEXT_TYPES = new Set(['text/plain', 'text/markdown', 'text/csv', 'application/json'])
+
+export async function extractText(data: Uint8Array, mime: string): Promise<Extracted> {
+  try {
+    if (mime === 'application/pdf') {
+      const pdf = await getDocumentProxy(new Uint8Array(data))
+      const { totalPages, text } = await pdfText(pdf, { mergePages: true })
+      const clean = text.replace(/[ \t]+\n/g, '\n').trim()
+      return { text: clean || null, pageCount: totalPages }
+    }
+    if (TEXT_TYPES.has(mime)) return { text: new TextDecoder().decode(data), pageCount: null }
+  } catch {
+    // unreadable or encrypted document
+  }
+  return { text: null, pageCount: null }
+}
+
+const MIME: Record<string, string> = {
+  pdf: 'application/pdf',
+  txt: 'text/plain',
+  md: 'text/markdown',
+  csv: 'text/csv',
+  json: 'application/json',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  svg: 'image/svg+xml',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  zip: 'application/zip'
+}
+
+export const mimeFor = (name: string): string => MIME[name.split('.').pop()?.toLowerCase() ?? ''] ?? 'application/octet-stream'
