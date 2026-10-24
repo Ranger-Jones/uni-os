@@ -21,7 +21,9 @@ const LABELS: Record<string, string> = {
   update_assignment: 'Update assignment',
   create_event: 'Add calendar event',
   set_component_grade: 'Record grade',
-  create_flashcards: 'Create flashcards'
+  create_flashcards: 'Create flashcards',
+  view_pdf_page: 'Looked at PDF page',
+  insert_pdf_image: 'Insert figure from PDF'
 }
 
 export const toolLabel = (name: string): string => LABELS[name] ?? name.replace(/_/g, ' ')

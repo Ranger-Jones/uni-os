@@ -1,5 +1,6 @@
 // Provider-agnostic agent loop: model turn → tools (with approval for mutating ones) → repeat.
 import type { ToolResult, ToolSpec } from '../tools'
+import { WithImages } from '../tools/define'
 
 export interface ToolCall {
   id: string
@@ -96,7 +97,8 @@ export async function runChatLoop<M>(opts: {
         continue
       }
       const r = await opts.exec(call)
-      const content = r.ok ? JSON.stringify(r.result ?? null) : `Error: ${r.error}`
+      // Images only travel over MCP; the in-app providers get the structured part.
+      const content = r.ok ? JSON.stringify((r.result instanceof WithImages ? r.result.result : r.result) ?? null) : `Error: ${r.error}`
       results.push({ id: call.id, name: call.name, content: content.length > MAX_RESULT_CHARS ? `${content.slice(0, MAX_RESULT_CHARS)}… [truncated]` : content, isError: !r.ok })
       opts.onEvent({ type: 'tool_result', id: call.id, ok: r.ok, error: r.ok ? undefined : r.error })
     }

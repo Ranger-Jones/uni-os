@@ -2,10 +2,11 @@ import 'katex/dist/katex.min.css'
 import '@blocknote/mantine/style.css'
 import { BlockNoteView, type Theme } from '@blocknote/mantine'
 import { filterSuggestionItems, insertOrUpdateBlockForSlashMenu } from '@blocknote/core'
-import { getDefaultReactSlashMenuItems, SuggestionMenuController, useCreateBlockNote } from '@blocknote/react'
+import { FormattingToolbar, FormattingToolbarController, getDefaultReactSlashMenuItems, getFormattingToolbarItems, SuggestionMenuController, useCreateBlockNote } from '@blocknote/react'
 import { FilePlus, FileText, Sigma } from 'lucide-react'
+import { ImageCropButton, InlineCropper, type CropTarget } from './ImageCrop'
 import { schema } from './schema'
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { api } from '../../lib/api'
 import { queryClient } from '../../lib/queries'
 
@@ -54,6 +55,9 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ pageId, 
   const appliedVersion = useRef<string | undefined>(externalContent?.version)
 
   const [blurTick, setBlurTick] = useState(0)
+  // Lives here, not in the toolbar: the toolbar unmounts as soon as the cropper takes the pointer.
+  const [cropTarget, setCropTarget] = useState<CropTarget | null>(null)
+  const closeCrop = useCallback(() => setCropTarget(null), [])
 
   useImperativeHandle(
     ref,
@@ -86,7 +90,15 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ pageId, 
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setBlurTick((t) => t + 1)
       }}
     >
-      <BlockNoteView editor={editor} theme={{ light: theme, dark: theme }} slashMenu={false} onChange={() => onChange(editor.document)}>
+      <BlockNoteView editor={editor} theme={{ light: theme, dark: theme }} slashMenu={false} formattingToolbar={false} onChange={() => onChange(editor.document)}>
+        <FormattingToolbarController
+          formattingToolbar={() => {
+            const items = getFormattingToolbarItems()
+            const at = items.findIndex((i) => i.key === 'fileCaptionButton') + 1
+            items.splice(at, 0, <ImageCropButton key="imageCropButton" onCrop={setCropTarget} />)
+            return <FormattingToolbar>{items}</FormattingToolbar>
+          }}
+        />
         <SuggestionMenuController
           triggerCharacter="/"
           getItems={async (query) =>
@@ -137,6 +149,17 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ pageId, 
           />
         ))}
       </BlockNoteView>
+      <InlineCropper
+        pageId={pageId}
+        target={cropTarget}
+        onClose={closeCrop}
+        onCropped={(url, previewWidth) => {
+          const target = cropTarget
+          setCropTarget(null)
+          if (target && editor.getBlock(target.blockId))
+            editor.updateBlock(target.blockId, { props: { url, ...(previewWidth ? { previewWidth } : {}) } } as never)
+        }}
+      />
     </div>
   )
 })

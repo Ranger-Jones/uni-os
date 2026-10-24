@@ -30,7 +30,7 @@ The builds are not signed with a paid Apple/Microsoft certificate, so the first 
 - **Flashcards**: FSRS spaced repetition, generate cards from a note page with the assistant
 - **Search** everything with ⌘K
 - **Assistant** (⌘J): chat with Claude (default `claude-opus-5-5`) or OpenAI models; it uses tools to look up your notes, files, deadlines and grades, and asks before changing anything
-- **MCP server**: Claude Desktop / Claude Code can use the same tools — even when UniOS is closed
+- **MCP server**: Claude Desktop / Claude Code can use the same tools — even when UniOS is closed. Ask Claude Code to illustrate a note with figures from the course PDFs: it looks at the slides (`view_pdf_page`), crops the figures and inserts them into the page (`insert_pdf_image`)
 
 All data stays local: `~/UniOS/unios.db` (SQLite) plus `~/UniOS/files/`. Daily snapshots go to a backup folder of your choice (iCloud Drive works well — keep the live data folder local).
 
