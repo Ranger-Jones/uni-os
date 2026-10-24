@@ -1,0 +1,20 @@
+# Dependabot: weekly version updates for the pnpm dependencies (security updates are enabled in the repo settings).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Europe/Berlin
+    open-pull-requests-limit: 10
+    groups:
+      # One PR for all minor/patch bumps; majors (e.g. Electron, React) come as separate PRs.
+      minor-and-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: deps
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
