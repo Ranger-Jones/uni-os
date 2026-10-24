@@ -1,7 +1,8 @@
-import { asc, eq } from 'drizzle-orm'
+import { and, asc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import type { Db } from '../db/open'
-import { courseSessions } from '../db/schema'
+import { courseSessions, courses, semesters } from '../db/schema'
+import { expandSessions, type Occurrence } from '../domain/schedule'
 import { notFound, parse } from '../errors'
 import { dateStr, newId, nowIso, timeStr } from '../util'
 import { get as getCourse } from './courses'
@@ -67,4 +68,19 @@ export function replaceForCourse(db: Db, courseId: string, rows: Omit<SessionInp
     for (const v of parsed) tx.insert(courseSessions).values({ id: newId(), ...v, createdAt: t, updatedAt: t }).run()
   })
   return listForCourse(db, courseId)
+}
+
+/** Concrete class meetings in [from, to] for all non-archived courses. */
+export function occurrences(db: Db, range: { from: string; to: string }): Occurrence[] {
+  const rows = db
+    .select({ s: courseSessions, boundsStart: semesters.startDate, boundsEnd: semesters.endDate })
+    .from(courseSessions)
+    .innerJoin(courses, eq(courses.id, courseSessions.courseId))
+    .innerJoin(semesters, eq(semesters.id, courses.semesterId))
+    .where(and(eq(courses.archived, false)))
+    .all()
+  return expandSessions(
+    rows.map((r) => ({ ...r.s, boundsStart: r.boundsStart, boundsEnd: r.boundsEnd })),
+    range
+  )
 }
