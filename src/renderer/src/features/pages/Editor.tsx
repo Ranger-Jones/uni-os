@@ -3,10 +3,11 @@ import '@blocknote/mantine/style.css'
 import { BlockNoteView, type Theme } from '@blocknote/mantine'
 import { filterSuggestionItems, insertOrUpdateBlockForSlashMenu } from '@blocknote/core'
 import { getDefaultReactSlashMenuItems, SuggestionMenuController, useCreateBlockNote } from '@blocknote/react'
-import { Sigma } from 'lucide-react'
+import { FilePlus, FileText, Sigma } from 'lucide-react'
 import { schema } from './schema'
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { api } from '../../lib/api'
+import { queryClient } from '../../lib/queries'
 
 // Theme values point at the app's CSS variables, so one theme serves light and dark mode.
 const theme: Theme = {
@@ -34,6 +35,7 @@ export interface EditorHandle {
 
 interface Props {
   pageId: string
+  courseId: string | null
   initialContent: unknown[]
   /** Content written by someone else (e.g. the assistant). Applied while the editor is not focused. */
   externalContent?: { content: unknown[]; version: string }
@@ -42,7 +44,7 @@ interface Props {
   onChange(blocks: unknown[]): void
 }
 
-export const Editor = forwardRef<EditorHandle, Props>(function Editor({ pageId, initialContent, externalContent, onExternalApplied, onChange }, ref) {
+export const Editor = forwardRef<EditorHandle, Props>(function Editor({ pageId, courseId, initialContent, externalContent, onExternalApplied, onChange }, ref) {
   const editor = useCreateBlockNote({
     schema,
     initialContent: initialContent.length ? (initialContent as never) : undefined,
@@ -104,6 +106,36 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ pageId, 
             )
           }
         />
+        {['@', '[['].map((trigger) => (
+          <SuggestionMenuController
+            key={trigger}
+            triggerCharacter={trigger}
+            getItems={async (query) => {
+              const hits = await api.pages.searchTitles({ q: query, exclude: pageId })
+              const insert = (id: string, title: string) =>
+                editor.insertInlineContent([{ type: 'pageMention', props: { pageId: id, title } }, ' '] as never)
+              const items = hits.map((h) => ({
+                title: h.title || 'Untitled',
+                subtext: h.courseName ?? 'Pages',
+                icon: h.icon ? <span className="text-base">{h.icon}</span> : <FileText size={16} />,
+                onItemClick: () => insert(h.id, h.title)
+              }))
+              const name = query.trim()
+              if (name && !hits.some((h) => h.title.toLowerCase() === name.toLowerCase()))
+                items.push({
+                  title: `New page “${name}”`,
+                  subtext: 'Create it and link here',
+                  icon: <FilePlus size={16} />,
+                  onItemClick: () =>
+                    void api.pages.create({ courseId, title: name }).then((p) => {
+                      insert(p.id, p.title)
+                      void queryClient.invalidateQueries({ queryKey: ['pages'] })
+                    })
+                })
+              return items
+            }}
+          />
+        ))}
       </BlockNoteView>
     </div>
   )

@@ -1,7 +1,9 @@
-import { BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs } from '@blocknote/core'
+import { BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs, defaultInlineContentSpecs } from '@blocknote/core'
 import { MathBlock } from './MathBlock'
+import { PageMention } from './PageMention'
 
 export const schema = BlockNoteSchema.create({
+  inlineContentSpecs: { ...defaultInlineContentSpecs, pageMention: PageMention },
   blockSpecs: {
     ...defaultBlockSpecs,
     math: MathBlock(),

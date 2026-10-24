@@ -76,6 +76,16 @@ export function createRouter(ctx: AppContext, host: Host, chat: ChatService) {
       tree: ({ courseId }: { courseId: string | null }) => pages.tree(ctx.db, { courseId }),
       get: ({ id }: { id: string }) => pages.get(ctx.db, id),
       ancestors: ({ id }: { id: string }) => pages.ancestors(ctx.db, id),
+      meta: ({ id }: { id: string }) => {
+        try {
+          const p = pages.get(ctx.db, id)
+          return { id: p.id, title: p.title, icon: p.icon, deleted: !!p.deletedAt }
+        } catch {
+          return null
+        }
+      },
+      backlinks: ({ id }: { id: string }) => pages.backlinks(ctx.db, id),
+      searchTitles: ({ q, exclude }: { q: string; exclude?: string }) => pages.searchTitles(ctx.db, q, { exclude, limit: 8 }),
       create: (input: Parameters<typeof pages.create>[1]) => pages.create(ctx.db, input),
       updateContent: ({ id, content, expectedUpdatedAt }: { id: string; content: unknown[]; expectedUpdatedAt?: string }) => pages.updateContent(ctx.db, id, content, expectedUpdatedAt),
       update: ({ id, patch }: Patch<Parameters<typeof pages.update>[2]>) => pages.update(ctx.db, id, patch),
@@ -95,6 +105,7 @@ export function createRouter(ctx: AppContext, host: Host, chat: ChatService) {
         return paths.length ? files.importFiles(ctx.db, ctx.filesDir, courseId, paths) : []
       },
       rename: ({ id, name }: { id: string; name: string }) => files.rename(ctx.db, id, name),
+      setTags: ({ id, tags }: { id: string; tags: string[] }) => files.setTags(ctx.db, id, tags),
       remove: ({ id }: { id: string }) => files.deleteFile(ctx.db, ctx.filesDir, id),
       open: ({ id }: { id: string }) => {
         const abs = files.absolutePath(ctx.db, ctx.filesDir, id)

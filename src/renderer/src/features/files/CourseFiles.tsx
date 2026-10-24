@@ -12,6 +12,7 @@ import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '../../c
 import { api } from '../../lib/api'
 import { cn } from '../../lib/cn'
 import { shortDate } from '../../lib/dates'
+import { TagChip, TagEditor } from './FileTags'
 import { queryClient, useApiMutation } from '../../lib/queries'
 
 const fmtSize = (n: number) => (n < 1024 ? `${n} B` : n < 1024 ** 2 ? `${(n / 1024).toFixed(0)} KB` : `${(n / 1024 ** 2).toFixed(1)} MB`)
@@ -24,6 +25,8 @@ export function CourseFiles({ courseId }: { courseId: string }) {
   const [preview, setPreview] = useState<{ file: FileMeta; url: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const remove = useApiMutation((id: string) => api.files.remove({ id }))
+  const setTags = useApiMutation(({ id, tags }: { id: string; tags: string[] }) => api.files.setTags({ id, tags }))
+  const [filter, setFilter] = useState<string | null>(null)
   const ask = useUi((s) => s.askAssistant)
 
   const importPaths = async (fn: () => Promise<FileMeta[]>) => {
@@ -56,7 +59,11 @@ export function CourseFiles({ courseId }: { courseId: string }) {
     setPreview({ file: f, url: await api.files.url({ id: f.id }) })
   }
 
-  const files = list.data ?? []
+  const all = list.data ?? []
+  const tagCounts = new Map<string, number>()
+  for (const f of all) for (const t of f.tags) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1)
+  const knownTags = [...tagCounts.keys()].sort()
+  const files = filter ? all.filter((f) => f.tags.includes(filter)) : all
 
   return (
     <div
@@ -71,13 +78,23 @@ export function CourseFiles({ courseId }: { courseId: string }) {
       className={cn('relative min-h-64 rounded-lg', dragging && 'outline-2 outline-offset-4 outline-accent outline-dashed')}
     >
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-[13px] text-muted">{files.length ? `${files.length} file${files.length > 1 ? 's' : ''}. Drop files here to add more.` : 'Drop lecture slides, scripts or exercise sheets here.'}</p>
+        <p className="text-[13px] text-muted">{all.length ? `${all.length} file${all.length > 1 ? 's' : ''}. Drop files here to add more.` : 'Drop lecture slides, scripts or exercise sheets here.'}</p>
         <Button size="sm" variant="primary" disabled={busy} onClick={() => void importPaths(() => api.files.importDialog({ courseId }))}>
           <Upload size={14} /> {busy ? 'Adding…' : 'Add files'}
         </Button>
       </div>
 
-      {files.length === 0 && !list.isLoading && <EmptyState icon={<Upload size={28} />} title="No files yet">PDF text is extracted automatically, so you can search it and the assistant can read it.</EmptyState>}
+      {knownTags.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          <button onClick={() => setFilter(null)} className={cn('h-5 rounded-full px-2 text-[11.5px] font-medium', filter === null ? 'bg-ink text-paper' : 'text-muted hover:bg-hover')}>
+            All {all.length}
+          </button>
+          {knownTags.map((t) => (
+            <TagChip key={t} tag={t} count={tagCounts.get(t)} active={filter === null ? undefined : filter === t} onClick={() => setFilter(filter === t ? null : t)} />
+          ))}
+        </div>
+      )}
+      {all.length === 0 && !list.isLoading && <EmptyState icon={<Upload size={28} />} title="No files yet">PDF text is extracted automatically, so you can search it and the assistant can read it.</EmptyState>}
 
       <div className={cn('grid gap-6', preview ? 'grid-cols-[minmax(0,320px)_1fr]' : 'grid-cols-1')}>
         <ul className="flex flex-col">
@@ -87,6 +104,7 @@ export function CourseFiles({ courseId }: { courseId: string }) {
               <li key={f.id} onClick={() => void openPreview(f)} className={cn('group flex h-10 items-center gap-3 rounded-md px-2 hover:bg-hover', preview?.file.id === f.id && 'bg-active')}>
                 <Icon size={16} className="shrink-0 text-muted" />
                 <span className="min-w-0 flex-1 truncate text-sm">{f.name}</span>
+                <TagEditor tags={f.tags} known={knownTags} onChange={(tags) => setTags.mutate({ id: f.id, tags })} />
                 {f.mime === 'application/pdf' && !f.hasText && <span className="rounded bg-hover px-1.5 text-[11px] text-muted" title="No text layer found (scanned PDF?)">no text</span>}
                 {!preview && (
                   <>

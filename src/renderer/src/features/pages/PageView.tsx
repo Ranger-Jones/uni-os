@@ -15,6 +15,7 @@ import { queryClient, useCourse, usePage, usePageAncestors } from '../../lib/que
 import { pageRoute } from '../../router'
 import { Editor, type EditorHandle } from './Editor'
 import { usePageActions } from './usePageActions'
+import { useQuery } from '@tanstack/react-query'
 
 const SAVE_DELAY = 500
 
@@ -180,6 +181,7 @@ function PageEditor({ page }: { page: PageData }) {
         <Editor
           ref={editorRef}
           pageId={page.id}
+          courseId={page.courseId}
           initialContent={initialContent}
           externalContent={external}
           onExternalApplied={onExternalApplied}
@@ -189,6 +191,7 @@ function PageEditor({ page }: { page: PageData }) {
           }}
         />
       </div>
+      <Backlinks pageId={page.id} />
       <GenerateCardsDialog open={generate} onOpenChange={setGenerate} page={{ id: page.id, title, courseId: page.courseId }} />
     </div>
   )
@@ -214,5 +217,25 @@ function Breadcrumbs({ courseId, ancestors }: { courseId: string | null; ancesto
         </span>
       ))}
     </nav>
+  )
+}
+
+function Backlinks({ pageId }: { pageId: string }) {
+  const links = useQuery({ queryKey: ['page', pageId, 'backlinks'], queryFn: () => api.pages.backlinks({ id: pageId }) })
+  if (!links.data?.length) return null
+  return (
+    <section className="mt-16 border-t border-line pt-4">
+      <h2 className="mb-2 text-[13px] font-medium text-muted">Linked from</h2>
+      <ul className="flex flex-col">
+        {links.data.map((l) => (
+          <li key={l.id}>
+            <Link to="/pages/$pageId" params={{ pageId: l.id }} className="flex items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-hover">
+              <span className="w-4 text-center text-muted">{l.icon ?? '↳'}</span>
+              {l.title || 'Untitled'}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
