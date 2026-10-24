@@ -15,6 +15,10 @@ export function fakeAdapter(): LlmAdapter<M> {
       const lastUser = [...history].reverse().find((m) => m.role === 'user' && typeof m.content === 'string')
       const ask = String(lastUser?.content ?? '').toLowerCase()
       const afterTool = Array.isArray(last?.content)
+      if (ask.startsWith('create flashcards')) {
+        const call = { type: 'tool_use', id: `t${Date.now()}`, name: 'propose_flashcards', input: { cards: [{ front: 'Wann heißt eine Folge konvergent?', back: 'Wenn es ein $a$ gibt mit $\\forall \\varepsilon>0\\ \\exists N: |a_n-a|<\\varepsilon$ für alle $n \\ge N$.' }, { front: 'Was ist eine Cauchy-Folge?', back: 'Eine Folge, deren Glieder beliebig nah beieinander liegen: $|a_n - a_m| < \\varepsilon$ für $n,m \\ge N$.' }, { front: 'Jede konvergente Folge ist …?', back: 'beschränkt.' }] } }
+        return { messages: [{ role: 'assistant', content: [call] }], toolCalls: [{ id: call.id, name: call.name, input: call.input }], stop: 'tool_use' }
+      }
       await new Promise((r) => setTimeout(r, 150))
       if (!afterTool) {
         const call = ask.includes('create')

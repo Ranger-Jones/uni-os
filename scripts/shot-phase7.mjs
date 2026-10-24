@@ -1,0 +1,30 @@
+import { seed } from './seed-demo.mjs'
+export default async function (win, out) {
+  const ids = await seed(win)
+  const pageId = await win.evaluate(async (ids) => {
+    const r = await window.bridge.invoke('pages.create', { courseId: ids.ana, title: 'Vorlesung 2: Konvergenz' })
+    await window.bridge.invoke('pages.updateContent', { id: r.data.id, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Eine Folge heißt konvergent, wenn …', styles: {} }], children: [] }] })
+    return r.data.id
+  }, ids)
+  await win.evaluate((id) => (location.hash = `#/pages/${id}`), pageId)
+  await win.waitForTimeout(700)
+  await win.getByRole('button', { name: 'Page actions' }).click()
+  await win.getByText('Generate flashcards').click()
+  await win.getByRole('button', { name: /Add 3 cards/ }).waitFor({ timeout: 5000 })
+  await win.screenshot({ path: `${out}-generate.png` })
+  await win.getByRole('button', { name: /Add 3 cards/ }).click()
+  await win.waitForTimeout(400)
+  await win.getByText('Today', { exact: true }).click()
+  await win.waitForTimeout(400)
+  await win.screenshot({ path: `${out}-today.png` })
+  await win.getByText('Flashcards', { exact: true }).first().click()
+  await win.waitForTimeout(400)
+  await win.screenshot({ path: `${out}-decks.png` })
+  await win.getByRole('button', { name: 'Review all due' }).click()
+  await win.waitForTimeout(300)
+  await win.keyboard.press('Space')
+  await win.waitForTimeout(300)
+  await win.screenshot({ path: `${out}-review.png` })
+  await win.keyboard.press('3')
+  await win.waitForTimeout(300)
+}

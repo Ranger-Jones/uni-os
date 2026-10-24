@@ -1,6 +1,9 @@
 import { useNavigate } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '../../lib/api'
+import { Layers } from 'lucide-react'
 import { isOverdue, OPEN_STATUS, type Assignment } from '@core/repo/assignments'
 import type { CalendarEvent } from '@core/repo/events'
 import { Button } from '../../components/ui/Button'
@@ -42,6 +45,7 @@ export function TodayView() {
   const open = useAssignments({ status: OPEN_STATUS })
   const [assignment, setAssignment] = useState<{ open: boolean; a?: Assignment }>({ open: false })
   const [event, setEvent] = useState<CalendarEvent | undefined>()
+  const cardsDue = useQuery({ queryKey: ['cards', 'due'], queryFn: () => api.cards.totalDue() })
 
   const course = (id: string | null) => courses.data?.find((c) => c.id === id)
   const week = semester ? semesterWeek(semester.startDate, semester.endDate, today) : null
@@ -117,6 +121,15 @@ export function TodayView() {
         </div>
 
         <div>
+          {(cardsDue.data ?? 0) > 0 && (
+            <button onClick={() => void navigate({ to: '/flashcards' })} className="mb-8 flex w-full items-center gap-3 rounded-xl border border-line bg-raised px-4 py-3 text-left hover:border-faint">
+              <Layers size={18} className="text-accent" />
+              <span className="flex-1 text-sm">
+                <span className="font-serif text-lg font-semibold tabular-nums">{cardsDue.data}</span> flashcard{cardsDue.data === 1 ? '' : 's'} due for review
+              </span>
+              <span className="text-[13px] text-accent">Review</span>
+            </button>
+          )}
           {overdue.length > 0 && (
             <Section title="Overdue">
               {overdue.map((a) => (

@@ -4,9 +4,9 @@ import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 
-export function Markdown({ text }: { text: string }) {
+export function Markdown({ text, className = 'text-[14px]' }: { text: string; className?: string }) {
   return (
-    <div className="unios-md selectable text-[14px] leading-relaxed">
+    <div className={`unios-md selectable leading-relaxed ${className}`}>
       <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
         {text}
       </ReactMarkdown>

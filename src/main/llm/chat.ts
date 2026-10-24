@@ -8,6 +8,7 @@ import type { AppContext } from '../context'
 import { getKey } from '../secrets'
 import { anthropicAdapter } from './anthropic'
 import { fakeAdapter } from './fake'
+import { generateCards } from './generateCards'
 import { openaiAdapter } from './openai'
 
 export type ChatStreamEvent = { runId: string; threadId: string } & (LoopEvent | { type: 'error'; message: string } | { type: 'approval'; id: string; name: string; input: unknown })
@@ -35,7 +36,7 @@ export class ChatService {
     return { thread: t, messages: toDisplay(t.provider, chats.nativeHistory(this.ctx.db, threadId)), running: [...this.runs.values()].some((r) => r.threadId === threadId) }
   }
 
-  private adapter(provider: 'anthropic' | 'openai', model: string): LlmAdapter<unknown> {
+  adapter(provider: 'anthropic' | 'openai', model: string): LlmAdapter<unknown> {
     if (process.env.UNIOS_FAKE_LLM === '1') return fakeAdapter() as LlmAdapter<unknown>
     const key = getKey(provider)
     if (!key) throw new Error(`Add your ${provider === 'anthropic' ? 'Anthropic' : 'OpenAI'} API key in Settings to use the assistant.`)
@@ -83,6 +84,11 @@ export class ChatService {
       .finally(() => this.runs.delete(runId))
 
     return base
+  }
+
+  generateCards(pageId: string) {
+    const s = this.ctx.settings
+    return generateCards(this.ctx.db, this.adapter(s.defaultProvider, s.defaultProvider === 'anthropic' ? s.anthropicModel : s.openaiModel), pageId)
   }
 
   approve(runId: string, callId: string, approved: boolean): void {

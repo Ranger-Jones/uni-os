@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
-import { Copy, MessageSquare, MoreHorizontal, Smile, Sparkles, Trash2 } from 'lucide-react'
+import { Copy, Layers, MessageSquare, MoreHorizontal, Smile, Sparkles, Trash2 } from 'lucide-react'
+import { GenerateCardsDialog } from '../flashcards/GenerateCardsDialog'
 import { useUi } from '../../lib/store'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { EmojiPicker } from '../../components/ui/EmojiPicker'
@@ -28,6 +29,7 @@ type PageData = NonNullable<ReturnType<typeof usePage>['data']>
 function PageEditor({ page }: { page: PageData }) {
   const actions = usePageActions()
   const ask = useUi((s) => s.askAssistant)
+  const [generate, setGenerate] = useState(false)
   const ancestors = usePageAncestors(page.id)
   const editorRef = useRef<EditorHandle>(null)
   const [title, setTitle] = useState(page.title)
@@ -75,6 +77,9 @@ function PageEditor({ page }: { page: PageData }) {
           <MenuContent align="end">
             <MenuItem icon={<Sparkles size={14} />} onSelect={() => void flush().then(() => ask(`Summarize my note page "${title || 'Untitled'}" in a few bullet points and point out anything that seems unclear or missing.`, page.courseId))}>
               Summarize with assistant
+            </MenuItem>
+            <MenuItem icon={<Layers size={14} />} onSelect={() => void flush().then(() => setGenerate(true))}>
+              Generate flashcards
             </MenuItem>
             <MenuItem icon={<MessageSquare size={14} />} onSelect={() => void flush().then(() => ask(`About my note page "${title || 'Untitled'}": `, page.courseId))}>
               Ask about this page
@@ -139,6 +144,7 @@ function PageEditor({ page }: { page: PageData }) {
           }}
         />
       </div>
+      <GenerateCardsDialog open={generate} onOpenChange={setGenerate} page={{ id: page.id, title, courseId: page.courseId }} />
     </div>
   )
 }

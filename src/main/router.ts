@@ -1,5 +1,7 @@
 import * as assignments from '@core/repo/assignments'
+import * as cards from '@core/repo/cards'
 import * as courses from '@core/repo/courses'
+import * as decks from '@core/repo/decks'
 import * as events from '@core/repo/events'
 import * as files from '@core/repo/files'
 import * as grades from '@core/repo/grades'
@@ -123,6 +125,23 @@ export function createRouter(ctx: AppContext, host: Host, chat: ChatService) {
       stop: ({ runId }: { runId: string }) => chat.stop(runId),
       renameThread: ({ id, title }: { id: string; title: string }) => chats.renameThread(ctx.db, id, title),
       removeThread: ({ id }: { id: string }) => chats.removeThread(ctx.db, id)
+    },
+    cards: {
+      decks: ({ courseId }: { courseId?: string | null } = {}) => decks.list(ctx.db, { courseId }, new Date()),
+      totalDue: () => decks.totalDue(ctx.db, new Date()),
+      createDeck: (input: { courseId?: string | null; name: string }) => decks.create(ctx.db, input),
+      renameDeck: ({ id, name }: { id: string; name: string }) => decks.rename(ctx.db, id, name),
+      removeDeck: ({ id }: { id: string }) => decks.remove(ctx.db, id),
+      list: ({ deckId }: { deckId: string }) => cards.list(ctx.db, deckId),
+      due: ({ deckIds }: { deckIds: string[] }) => deckIds.flatMap((d) => cards.listDue(ctx.db, d, new Date(), 200)),
+      create: ({ deckId, front, back }: { deckId: string; front: string; back: string }) => cards.create(ctx.db, deckId, { front, back }, new Date()),
+      createMany: ({ deckId, items, sourcePageId }: { deckId: string; items: { front: string; back: string }[]; sourcePageId?: string }) =>
+        cards.createMany(ctx.db, deckId, items.map((i) => ({ ...i, sourcePageId })), new Date()),
+      findOrCreateDeck: ({ courseId, name }: { courseId: string | null; name: string }) => decks.findOrCreate(ctx.db, courseId, name),
+      update: ({ id, front, back }: { id: string; front?: string; back?: string }) => cards.update(ctx.db, id, { front, back }),
+      remove: ({ id }: { id: string }) => cards.remove(ctx.db, id),
+      review: ({ id, rating }: { id: string; rating: 1 | 2 | 3 | 4 }) => cards.review(ctx.db, id, rating, new Date()),
+      generate: ({ pageId }: { pageId: string }) => chat.generateCards(pageId)
     },
     assets: {
       store: ({ name, data }: { name: string; data: Uint8Array }) => storeAsset(ctx, name, data)

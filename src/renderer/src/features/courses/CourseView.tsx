@@ -14,6 +14,7 @@ import { courseRoute } from '../../router'
 import { AssignmentList } from '../assignments/AssignmentList'
 import { CourseGrades } from '../grades/CourseGrades'
 import { CourseFiles } from '../files/CourseFiles'
+import { Decks } from '../flashcards/Decks'
 import { PageTree } from '../pages/PageTree'
 import { usePageActions } from '../pages/usePageActions'
 import { Button } from '../../components/ui/Button'
@@ -108,7 +109,7 @@ export function CourseView() {
         {tab === 'assignments' && <AssignmentList courseId={courseId} />}
         {tab === 'grades' && <CourseGrades course={c} />}
         {tab === 'files' && <CourseFiles courseId={courseId} />}
-        {tab === 'cards' && <EmptyState title="Coming soon" />}
+        {tab === 'cards' && <Decks courseId={courseId} />}
       </div>
 
       <CourseDialog open={editOpen} onOpenChange={setEditOpen} semesterId={c.semesterId} course={c} sessions={sessions.data} />

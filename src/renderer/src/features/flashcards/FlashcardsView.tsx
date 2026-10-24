@@ -1,10 +1,10 @@
 import { Page } from '../../components/layout/Page'
-import { EmptyState } from '../../components/ui/EmptyState'
+import { Decks } from './Decks'
 
 export function FlashcardsView() {
   return (
-    <Page title="Flashcards">
-      <EmptyState title="Coming soon" />
+    <Page title="Flashcards" wide>
+      <Decks />
     </Page>
   )
 }
