@@ -1,6 +1,7 @@
 import * as assignments from '@core/repo/assignments'
 import * as courses from '@core/repo/courses'
 import * as events from '@core/repo/events'
+import * as grades from '@core/repo/grades'
 import * as pages from '@core/repo/pages'
 import * as search from '@core/repo/search'
 import * as semesters from '@core/repo/semesters'
@@ -83,6 +84,13 @@ export function createRouter(ctx: AppContext, host: Host) {
       create: (input: events.EventInput) => events.create(ctx.db, input),
       update: ({ id, patch }: Patch<Parameters<typeof events.update>[2]>) => events.update(ctx.db, id, patch),
       remove: ({ id }: { id: string }) => events.remove(ctx.db, id)
+    },
+    grades: {
+      overview: (opts: { semesterId?: string } = {}) => grades.overview(ctx.db, opts),
+      listComponents: ({ courseId }: { courseId: string }) => grades.listComponents(ctx.db, courseId),
+      createComponent: (input: grades.ComponentInput) => grades.createComponent(ctx.db, input),
+      updateComponent: ({ id, patch }: Patch<Parameters<typeof grades.updateComponent>[2]>) => grades.updateComponent(ctx.db, id, patch),
+      removeComponent: ({ id }: { id: string }) => grades.removeComponent(ctx.db, id)
     },
     sessions: {
       occurrences: (range: { from: string; to: string }) => sessions.occurrences(ctx.db, range),
