@@ -10,11 +10,21 @@ files:
 asarUnpack:
   - "**/*.node"
 npmRebuild: false
+# Update metadata (latest*.yml) for electron-updater on Windows / Linux AppImage; uploads happen via scripts/release.sh
+publish:
+  provider: github
+  owner: Ranger-Jones
+  repo: uni-os
 mac:
+  # zip name used by the in-app updater; the dmg section sets its own name
+  artifactName: UniOS-${version}-${arch}-mac.${ext}
   category: public.app-category.education
   icon: build/icon.icns
   target:
     - target: dmg
+      arch: [arm64, x64]
+    # zip is what the in-app updater downloads on macOS
+    - target: zip
       arch: [arm64, x64]
   # Ad-hoc signature: no Apple Developer ID, but a valid bundle seal so Gatekeeper offers "Open Anyway"
   # instead of reporting the app as damaged.

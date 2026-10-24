@@ -10,6 +10,10 @@ export interface Settings {
   anthropicModel: string
   openaiModel: string
   lastBackupAt: string | null
+  /** Look for new releases on GitHub at startup and every few hours. */
+  checkUpdates: boolean
+  /** Version whose release notes the user has seen ("What's new" after an update). */
+  lastSeenVersion: string | null
 }
 
 export const defaultSettings = (): Settings => ({
@@ -19,7 +23,9 @@ export const defaultSettings = (): Settings => ({
   defaultProvider: 'anthropic',
   anthropicModel: 'claude-opus-5-5',
   openaiModel: 'gpt-5',
-  lastBackupAt: null
+  lastBackupAt: null,
+  checkUpdates: true,
+  lastSeenVersion: null
 })
 
 type Env = Record<string, string | undefined>

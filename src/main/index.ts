@@ -9,6 +9,7 @@ import { handleFileScheme, registerFileScheme } from './protocol'
 import { scheduleBackups } from './backup'
 import { ChatService } from './llm/chat'
 import { createRouter } from './router'
+import { Updater } from './updater'
 import { watchExternalChanges } from './watcher'
 
 app.setName('UniOS')
@@ -52,6 +53,7 @@ function createWindow(): BrowserWindow {
 
 app.whenReady().then(() => {
   nativeTheme.themeSource = ctx.settings.theme
+  const updater = new Updater(ctx, (state) => mainWindow?.webContents.send('update:state', state))
   handleFileScheme(ctx)
   const router = createRouter(ctx, {
     chooseFolder: async (title) => {
@@ -71,12 +73,13 @@ app.whenReady().then(() => {
       nativeTheme.themeSource = theme
     },
     appInfo: () => ({ version: app.getVersion(), userDataDir: app.getPath('userData'), platform: process.platform })
-  }, new ChatService(ctx, () => mainWindow?.webContents ?? null))
+  }, new ChatService(ctx, () => mainWindow?.webContents ?? null), updater)
   registerIpc(router)
   registerDropImport((courseId, paths) => importFiles(ctx.db, ctx.filesDir, courseId, paths))
   mainWindow = createWindow()
   watchExternalChanges(ctx, () => mainWindow)
   scheduleBackups(ctx)
+  updater.start()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow()
   })

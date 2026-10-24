@@ -49,6 +49,13 @@ pnpm dist:win     # Windows installer (NSIS)
 pnpm dist:linux   # Linux AppImage + .deb
 ```
 
+### Releasing
+
+1. Bump `version` in `package.json` and write English release notes in `docs/release-notes/<version>.md` — they are shown inside the app.
+2. Commit, then run `pnpm release`. It tests, builds every platform, writes `SHA256SUMS.txt`, tags `v<version>` and publishes the GitHub release with all installers and update metadata.
+
+Installed apps pick the release up through the in-app updater. To try the macOS self-update locally without publishing, see `scripts/update-e2e.mjs` (serve a fake release feed and set `UNIOS_UPDATE_FEED`).
+
 Useful environment variables:
 
 | Variable | Purpose |
@@ -56,6 +63,7 @@ Useful environment variables:
 | `UNIOS_USER_DATA` | Settings folder (default `~/Library/Application Support/UniOS`) |
 | `UNIOS_DATA_DIR` | Default data folder for a fresh install |
 | `UNIOS_FAKE_LLM=1` | Scripted offline assistant for UI work without API costs |
+| `UNIOS_UPDATE_FEED` | Base URL of a local release feed for testing updates |
 
 
 ## Architecture

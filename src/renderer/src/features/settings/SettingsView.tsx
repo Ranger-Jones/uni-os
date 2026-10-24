@@ -9,6 +9,7 @@ import { Button } from '../../components/ui/Button'
 import { api } from '../../lib/api'
 import { cn } from '../../lib/cn'
 import { useApiMutation, useAppInfo, useSettings, useTrash } from '../../lib/queries'
+import { useUpdateState } from '../update/useUpdate'
 import { confirm } from '../../components/ui/confirm'
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -107,10 +108,8 @@ export function SettingsView() {
         <TrashList />
       </Section>
 
-      <Section title="About">
-        <Row label="UniOS" hint={`Version ${info.data?.version ?? '–'}`}>
-          {null}
-        </Row>
+      <Section title="Updates">
+        <UpdateSettings version={info.data?.version} auto={s.checkUpdates} onAuto={(checkUpdates) => update.mutate({ checkUpdates })} />
       </Section>
     </Page>
   )
@@ -276,5 +275,31 @@ function BackupRow({ hasDir }: { hasDir: boolean }) {
         Back up now
       </Button>
     </Row>
+  )
+}
+
+function UpdateSettings({ version, auto, onAuto }: { version?: string; auto: boolean; onAuto: (v: boolean) => void }) {
+  const state = useUpdateState()
+  const text =
+    state.status === 'checking'
+      ? 'Checking…'
+      : state.status === 'up-to-date'
+        ? 'You have the latest version.'
+        : state.status === 'available' || state.status === 'downloading' || state.status === 'ready'
+          ? `Version ${state.release.version} is available — see the notice in the sidebar.`
+          : state.status === 'error'
+            ? state.message
+            : 'New versions are published on GitHub.'
+  return (
+    <>
+      <Row label={`UniOS ${version ?? ''}`} hint={<span className={state.status === 'error' ? 'text-danger' : undefined}>{text}</span>}>
+        <Button size="sm" disabled={state.status === 'checking' || state.status === 'downloading'} onClick={() => void api.update.check()}>
+          Check for updates
+        </Button>
+      </Row>
+      <Row label="Check automatically" hint="Looks for a new version when UniOS starts and every few hours.">
+        <input type="checkbox" checked={auto} onChange={(e) => onAuto(e.target.checked)} aria-label="Check for updates automatically" />
+      </Row>
+    </>
   )
 }

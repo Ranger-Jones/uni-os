@@ -17,6 +17,7 @@ import { fileUrl } from './protocol'
 import { isSafeToOpen } from '@core/paths'
 import type { AppContext } from './context'
 import type { ChatService } from './llm/chat'
+import type { Updater } from './updater'
 import { ANTHROPIC_MODELS } from './llm/anthropic'
 import { OPENAI_MODEL_SUGGESTIONS } from './llm/openai'
 import { keyStatus, setKey, type Provider } from './secrets'
@@ -35,10 +36,18 @@ export interface Host {
 
 type Patch<T> = { id: string; patch: T }
 
-export function createRouter(ctx: AppContext, host: Host, chat: ChatService) {
+export function createRouter(ctx: AppContext, host: Host, chat: ChatService, updater: Updater) {
   return {
     app: {
       info: () => ({ ...host.appInfo(), dataDir: ctx.dataDir })
+    },
+    update: {
+      state: () => updater.state,
+      check: () => updater.check(),
+      download: () => updater.download(),
+      install: () => updater.install(),
+      whatsNew: () => updater.whatsNewRelease(),
+      dismissWhatsNew: () => updater.dismissWhatsNew()
     },
     settings: {
       get: () => ctx.settings,
