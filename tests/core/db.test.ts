@@ -4,7 +4,7 @@ import { dataVersion, migrate, openDb } from '@core/db/open'
 import * as schema from '@core/db/schema'
 import { memDb, tmpFile } from '../helpers/db'
 
-const tables = Object.values(schema).filter((t): t is SQLiteTable => t instanceof SQLiteTable)
+const tables = (Object.values(schema) as unknown[]).filter((t): t is SQLiteTable => t instanceof SQLiteTable)
 
 test('migrations create every drizzle column', () => {
   const { sqlite } = memDb()
