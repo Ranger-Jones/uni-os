@@ -9,9 +9,10 @@ import electronPath from 'electron'
 const dir = mkdtempSync(join(tmpdir(), 'unios-mcp-smoke-'))
 mkdirSync(join(dir, 'userdata'))
 writeFileSync(join(dir, 'userdata', 'settings.json'), JSON.stringify({ dataDir: join(dir, 'data') }))
+const packaged = process.env.SMOKE_APP // e.g. dist/mac-arm64/UniOS.app
 const transport = new StdioClientTransport({
-  command: electronPath,
-  args: [resolve('out/main/mcp.js')],
+  command: packaged ? `${packaged}/Contents/MacOS/UniOS` : electronPath,
+  args: [packaged ? `${resolve(packaged)}/Contents/Resources/app.asar/out/main/mcp.js` : resolve('out/main/mcp.js')],
   env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', UNIOS_USER_DATA: join(dir, 'userdata') }
 })
 const client = new Client({ name: 'smoke', version: '1.0.0' })

@@ -1,0 +1,24 @@
+appId: de.eventings.unios
+productName: UniOS
+copyright: Copyright © 2026
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**
+  - package.json
+asarUnpack:
+  - "**/*.node"
+npmRebuild: false
+mac:
+  category: public.app-category.education
+  icon: build/icon.icns
+  target:
+    - target: dmg
+      arch: [arm64]
+  identity: null
+  hardenedRuntime: false
+  extendInfo:
+    NSHumanReadableCopyright: UniOS — your semester, organized.
+dmg:
+  title: UniOS

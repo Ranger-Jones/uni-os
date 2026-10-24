@@ -9,7 +9,7 @@ const out = process.argv[2] ?? '/tmp/unios-shot'
 const steps = process.argv[3] ? (await import(process.argv[3])).default : async () => {}
 
 const app = await electron.launch({
-  args: ['.'],
+  ...(process.env.SHOT_EXEC ? { executablePath: process.env.SHOT_EXEC, args: [] } : { args: ['.'] }),
   env: { ...process.env, UNIOS_USER_DATA: join(dir, 'userdata'), UNIOS_DATA_DIR: join(dir, 'data') }
 })
 const win = await app.firstWindow()
