@@ -1,4 +1,6 @@
+import * as assignments from '@core/repo/assignments'
 import * as courses from '@core/repo/courses'
+import * as events from '@core/repo/events'
 import * as pages from '@core/repo/pages'
 import * as search from '@core/repo/search'
 import * as semesters from '@core/repo/semesters'
@@ -70,7 +72,20 @@ export function createRouter(ctx: AppContext, host: Host) {
     assets: {
       store: ({ name, data }: { name: string; data: Uint8Array }) => storeAsset(ctx, name, data)
     },
+    assignments: {
+      list: (f: assignments.AssignmentFilter = {}) => assignments.list(ctx.db, f),
+      create: (input: assignments.AssignmentInput) => assignments.create(ctx.db, input),
+      update: ({ id, patch }: Patch<Parameters<typeof assignments.update>[2]>) => assignments.update(ctx.db, id, patch),
+      remove: ({ id }: { id: string }) => assignments.remove(ctx.db, id)
+    },
+    events: {
+      list: (f: { from: string; to: string; courseId?: string }) => events.list(ctx.db, f),
+      create: (input: events.EventInput) => events.create(ctx.db, input),
+      update: ({ id, patch }: Patch<Parameters<typeof events.update>[2]>) => events.update(ctx.db, id, patch),
+      remove: ({ id }: { id: string }) => events.remove(ctx.db, id)
+    },
     sessions: {
+      occurrences: (range: { from: string; to: string }) => sessions.occurrences(ctx.db, range),
       listAll: () => sessions.listAll(ctx.db),
       listForCourse: ({ courseId }: { courseId: string }) => sessions.listForCourse(ctx.db, courseId),
       replaceForCourse: ({ courseId, rows }: { courseId: string; rows: Omit<sessions.SessionInput, 'courseId'>[] }) =>

@@ -10,6 +10,7 @@ import { api } from '../../lib/api'
 import { courseColor } from '../../lib/colors'
 import { useApiMutation, useCourse, useSessions } from '../../lib/queries'
 import { courseRoute } from '../../router'
+import { AssignmentList } from '../assignments/AssignmentList'
 import { PageTree } from '../pages/PageTree'
 import { usePageActions } from '../pages/usePageActions'
 import { Button } from '../../components/ui/Button'
@@ -97,7 +98,8 @@ export function CourseView() {
       <div className="pt-6">
         {tab === 'overview' && <Overview courseId={courseId} overview={c.overview ?? ''} sessions={sessions.data ?? []} onSave={(overview) => update.mutate({ overview })} />}
         {tab === 'notes' && <Notes courseId={courseId} />}
-        {!['overview', 'notes'].includes(tab) && <EmptyState title="Coming soon" />}
+        {tab === 'assignments' && <AssignmentList courseId={courseId} />}
+        {!['overview', 'notes', 'assignments'].includes(tab) && <EmptyState title="Coming soon" />}
       </div>
 
       <CourseDialog open={editOpen} onOpenChange={setEditOpen} semesterId={c.semesterId} course={c} sessions={sessions.data} />
