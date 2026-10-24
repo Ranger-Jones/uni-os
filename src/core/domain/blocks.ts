@@ -26,7 +26,9 @@ function tableText(content: Json): string[] {
 function collect(blocks: unknown[], out: string[]): void {
   for (const b of blocks) {
     if (!isObj(b)) continue
-    if (isObj(b.content) && b.content.type === 'tableContent') out.push(...tableText(b.content))
+    if (b.type === 'math' && isObj(b.props) && typeof b.props.latex === 'string') {
+      if (b.props.latex.trim()) out.push(b.props.latex.trim())
+    } else if (isObj(b.content) && b.content.type === 'tableContent') out.push(...tableText(b.content))
     else {
       const text = inlineText(b.content).trim()
       if (text) out.push(text)

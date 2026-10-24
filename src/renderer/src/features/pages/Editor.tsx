@@ -1,6 +1,10 @@
+import 'katex/dist/katex.min.css'
 import '@blocknote/mantine/style.css'
 import { BlockNoteView, type Theme } from '@blocknote/mantine'
-import { useCreateBlockNote } from '@blocknote/react'
+import { filterSuggestionItems, insertOrUpdateBlockForSlashMenu } from '@blocknote/core'
+import { getDefaultReactSlashMenuItems, SuggestionMenuController, useCreateBlockNote } from '@blocknote/react'
+import { Sigma } from 'lucide-react'
+import { schema } from './schema'
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { api } from '../../lib/api'
 
@@ -35,6 +39,7 @@ interface Props {
 
 export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialContent, externalContent, onChange }, ref) {
   const editor = useCreateBlockNote({
+    schema,
     initialContent: initialContent.length ? (initialContent as never) : undefined,
     uploadFile: async (file: File) => api.assets.store({ name: file.name, data: new Uint8Array(await file.arrayBuffer()) })
   })
@@ -52,7 +57,27 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialC
 
   return (
     <div ref={wrapper} className="unios-editor -mx-[54px]">
-      <BlockNoteView editor={editor} theme={{ light: theme, dark: theme }} onChange={() => onChange(editor.document)} />
+      <BlockNoteView editor={editor} theme={{ light: theme, dark: theme }} slashMenu={false} onChange={() => onChange(editor.document)}>
+        <SuggestionMenuController
+          triggerCharacter="/"
+          getItems={async (query) =>
+            filterSuggestionItems(
+              [
+                ...getDefaultReactSlashMenuItems(editor),
+                {
+                  title: 'Formula',
+                  subtext: 'Display math written in LaTeX',
+                  aliases: ['math', 'latex', 'equation', 'formel', 'tex'],
+                  group: 'Advanced',
+                  icon: <Sigma size={18} />,
+                  onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: 'math' })
+                }
+              ],
+              query
+            )
+          }
+        />
+      </BlockNoteView>
     </div>
   )
 })

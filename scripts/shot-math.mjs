@@ -1,0 +1,23 @@
+import { seed } from './seed-demo.mjs'
+export default async function (win, out) {
+  const ids = await seed(win)
+  const id = await win.evaluate(async (ids) => (await window.bridge.invoke('pages.create', { courseId: ids.ana, title: 'Integrale' })).data.id, ids)
+  await win.evaluate((id) => (location.hash = `#/pages/${id}`), id)
+  await win.waitForTimeout(800)
+  await win.locator('.bn-editor').click()
+  await win.keyboard.type('Hauptsatz der Differential- und Integralrechnung:')
+  await win.keyboard.press('Enter')
+  await win.keyboard.type('/formula')
+  await win.waitForTimeout(300)
+  await win.screenshot({ path: `${out}-slash.png` })
+  await win.keyboard.press('Enter')
+  await win.waitForTimeout(300)
+  await win.keyboard.type('\\int_a^b f(x)\\,dx = F(b) - F(a)')
+  await win.waitForTimeout(300)
+  await win.screenshot({ path: `${out}-editing.png` })
+  await win.keyboard.press('Enter')
+  await win.waitForTimeout(900)
+  const saved = await win.evaluate(async (id) => (await window.bridge.invoke('pages.get', { id })).data.contentText, id)
+  console.log('SAVED_TEXT', JSON.stringify(saved))
+  await win.waitForTimeout(500)
+}

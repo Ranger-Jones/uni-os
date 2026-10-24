@@ -37,3 +37,7 @@ test('garbage input yields empty text instead of throwing', () => {
   expect(blocksToText('nope')).toBe('')
   expect(blocksToText([{ type: 'image', props: { url: 'x' } }])).toBe('')
 })
+
+test('math block source is part of the plain text', () => {
+  expect(blocksToText([{ type: 'math', props: { latex: 'e^{i\\pi}+1=0' }, children: [] }])).toBe('e^{i\\pi}+1=0')
+})

@@ -187,3 +187,14 @@ textarea,
   overflow-x: auto;
   overflow-y: hidden;
 }
+
+/* Formula blocks in the editor */
+.unios-math {
+  padding: 0.4em 0;
+  overflow-x: auto;
+}
+.unios-math-empty {
+  color: var(--faint);
+  font-size: 13px;
+  text-align: center;
+}

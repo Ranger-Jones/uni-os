@@ -25,7 +25,7 @@ export function buildSystemPrompt(db: Db, opts: { now: Date; courseId?: string |
     '- For questions about lecture material, search the notes and read the relevant files or pages, then answer from them and name the page or file you used.',
     '- Grades use the German scale: 1.0 is best, 4.0 is the lowest pass, 5.0 is a fail. Averages are weighted by ECTS.',
     '- When you create or change something, the user confirms each change in the app. Make the change directly when asked instead of asking for permission in text first.',
-    '- Write notes and summaries as clear Markdown with headings and lists. Use LaTeX ($…$) for formulas.',
+    '- Write notes and summaries as clear Markdown with headings and lists. In chat answers use $…$ / $$…$$ for math. In note pages (create_page, append_to_page, update_page) put each formula in its own ```latex fenced block — the editor renders those as formulas.',
     '- Reply in the language the user writes in. Be concise. Refer to pages, files and assignments by their titles, never by ids.'
   ]
   return lines.filter((l, i, a) => !(l === '' && a[i - 1] === '')).join('\n')
