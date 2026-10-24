@@ -93,3 +93,10 @@ export function parseChecksums(text: string): Map<string, string> {
   }
   return out
 }
+
+/** The asset file name carries exactly this version (e.g. UniOS-0.2.1-arm64-mac.zip). */
+export const assetMatchesVersion = (name: string, version: string): boolean => name.includes(`-${version}-`)
+
+/** The unpacked app must be the announced version and newer than the running one. */
+export const acceptableBundleVersion = (bundleVersion: string, releaseVersion: string, currentVersion: string): boolean =>
+  compareVersions(bundleVersion, releaseVersion) === 0 && compareVersions(bundleVersion, currentVersion) > 0

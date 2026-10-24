@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { ExternalLink, File, FileImage, FileText, FolderSearch, MoreHorizontal, Pencil, Sparkles, Trash2, Upload, X } from 'lucide-react'
+import { Copy, ExternalLink, File, FileImage, FileText, FileVideo, FolderSearch, Link2, MoreHorizontal, Pencil, PlayCircle, Plus, Sparkles, Trash2, Upload, X } from 'lucide-react'
+import type { CourseLink } from '@core/repo/links'
+import { LinkDialog } from './LinkDialog'
 import { useUi } from '../../lib/store'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -16,11 +18,24 @@ import { TagChip, TagEditor } from './FileTags'
 import { queryClient, useApiMutation } from '../../lib/queries'
 
 const fmtSize = (n: number) => (n < 1024 ? `${n} B` : n < 1024 ** 2 ? `${(n / 1024).toFixed(0)} KB` : `${(n / 1024 ** 2).toFixed(1)} MB`)
-const iconFor = (mime: string) => (mime === 'application/pdf' || mime.startsWith('text/') ? FileText : mime.startsWith('image/') ? FileImage : File)
-const previewable = (mime: string) => mime === 'application/pdf' || mime.startsWith('image/')
+const iconFor = (mime: string) => (mime === 'application/pdf' || mime.startsWith('text/') ? FileText : mime.startsWith('image/') ? FileImage : mime.startsWith('video/') ? FileVideo : File)
+const previewable = (mime: string) => mime === 'application/pdf' || mime.startsWith('image/') || mime === 'video/mp4' || mime === 'video/webm' || mime === 'video/quicktime'
+const host = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
+}
+type Kind = 'all' | 'files' | 'links' | 'videos'
 
 export function CourseFiles({ courseId }: { courseId: string }) {
   const list = useQuery({ queryKey: ['files', courseId], queryFn: () => api.files.list({ courseId }) })
+  const linkList = useQuery({ queryKey: ['links', courseId], queryFn: () => api.links.list({ courseId }) })
+  const [kind, setKind] = useState<Kind>('all')
+  const [linkDialog, setLinkDialog] = useState<{ open: boolean; link?: CourseLink }>({ open: false })
+  const removeLink = useApiMutation((id: string) => api.links.remove({ id }))
+  const setLinkTags = useApiMutation(({ id, tags }: { id: string; tags: string[] }) => api.links.update({ id, patch: { tags } }))
   const [dragging, setDragging] = useState(false)
   const [preview, setPreview] = useState<{ file: FileMeta; url: string } | null>(null)
   const [busy, setBusy] = useState(false)
@@ -60,10 +75,14 @@ export function CourseFiles({ courseId }: { courseId: string }) {
   }
 
   const all = list.data ?? []
+  const allLinks = linkList.data ?? []
   const tagCounts = new Map<string, number>()
-  for (const f of all) for (const t of f.tags) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1)
+  for (const x of [...all, ...allLinks]) for (const t of x.tags) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1)
   const knownTags = [...tagCounts.keys()].sort()
-  const files = filter ? all.filter((f) => f.tags.includes(filter)) : all
+  const byTag = <T extends { tags: string[] }>(xs: T[]) => (filter ? xs.filter((x) => x.tags.includes(filter)) : xs)
+  const files = byTag(all).filter((f) => (kind === 'links' ? false : kind === 'videos' ? f.mime.startsWith('video/') : true))
+  const shownLinks = byTag(allLinks).filter((l) => (kind === 'files' ? false : kind === 'videos' ? l.kind === 'video' : true))
+  const videoCount = all.filter((f) => f.mime.startsWith('video/')).length + allLinks.filter((l) => l.kind === 'video').length
 
   return (
     <div
@@ -78,24 +97,90 @@ export function CourseFiles({ courseId }: { courseId: string }) {
       className={cn('relative min-h-64 rounded-lg', dragging && 'outline-2 outline-offset-4 outline-accent outline-dashed')}
     >
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-[13px] text-muted">{all.length ? `${all.length} file${all.length > 1 ? 's' : ''}. Drop files here to add more.` : 'Drop lecture slides, scripts or exercise sheets here.'}</p>
-        <Button size="sm" variant="primary" disabled={busy} onClick={() => void importPaths(() => api.files.importDialog({ courseId }))}>
-          <Upload size={14} /> {busy ? 'Adding…' : 'Add files'}
-        </Button>
+        <p className="text-[13px] text-muted">{all.length || allLinks.length ? 'Drop files here to add more.' : 'Drop lecture slides, sheets or recordings here, or add links.'}</p>
+        <div className="flex gap-2">
+          <Button size="sm" onClick={() => setLinkDialog({ open: true })}>
+            <Plus size={14} /> Add link
+          </Button>
+          <Button size="sm" variant="primary" disabled={busy} onClick={() => void importPaths(() => api.files.importDialog({ courseId }))}>
+            <Upload size={14} /> {busy ? 'Adding…' : 'Add files'}
+          </Button>
+        </div>
       </div>
 
-      {knownTags.length > 0 && (
+      {(all.length > 0 || allLinks.length > 0) && (
         <div className="mb-3 flex flex-wrap items-center gap-1.5">
-          <button onClick={() => setFilter(null)} className={cn('h-5 rounded-full px-2 text-[11.5px] font-medium', filter === null ? 'bg-ink text-paper' : 'text-muted hover:bg-hover')}>
-            All {all.length}
-          </button>
+          {(
+            [
+              ['all', 'All', all.length + allLinks.length],
+              ['files', 'Files', all.length],
+              ['links', 'Links', allLinks.length],
+              ['videos', 'Videos', videoCount]
+            ] as [Kind, string, number][]
+          )
+            .filter(([k, , n]) => k === 'all' || n > 0)
+            .map(([k, label, n]) => (
+              <button
+                key={k}
+                onClick={() => {
+                  setKind(k)
+                  if (k === 'all') setFilter(null)
+                }}
+                className={cn('h-5 rounded-full px-2 text-[11.5px] font-medium', kind === k && (k !== 'all' || filter === null) ? 'bg-ink text-paper' : 'text-muted hover:bg-hover')}
+              >
+                {label} {n}
+              </button>
+            ))}
+          {knownTags.length > 0 && <span className="mx-1 h-3 w-px bg-line" />}
           {knownTags.map((t) => (
             <TagChip key={t} tag={t} count={tagCounts.get(t)} active={filter === null ? undefined : filter === t} onClick={() => setFilter(filter === t ? null : t)} />
           ))}
         </div>
       )}
-      {all.length === 0 && !list.isLoading && <EmptyState icon={<Upload size={28} />} title="No files yet">PDF text is extracted automatically, so you can search it and the assistant can read it.</EmptyState>}
+      {all.length === 0 && allLinks.length === 0 && !list.isLoading && (
+        <EmptyState icon={<Upload size={28} />} title="No materials yet">
+          Add lecture slides, exercise sheets, recordings or links. PDF text is extracted automatically, so you can search it and the assistant can read it.
+        </EmptyState>
+      )}
 
+      {shownLinks.length > 0 && (
+        <ul className="mb-4 flex flex-col">
+          {shownLinks.map((l) => (
+            <li key={l.id} onClick={() => void api.links.open({ id: l.id })} className="group flex h-10 items-center gap-3 rounded-md px-2 hover:bg-hover" title={l.note ?? l.url}>
+              {l.kind === 'video' ? <PlayCircle size={16} className="shrink-0 text-danger/80" /> : <Link2 size={16} className="shrink-0 text-muted" />}
+              <span className="min-w-0 flex-1 truncate text-sm">
+                {l.title}
+                <span className="ml-2 text-[12px] text-faint">{host(l.url)}</span>
+              </span>
+              <TagEditor tags={l.tags} known={knownTags} onChange={(tags) => setLinkTags.mutate({ id: l.id, tags })} />
+              <div onClick={(e) => e.stopPropagation()}>
+                <Menu>
+                  <MenuTrigger className="invisible rounded p-1 text-muted group-hover:visible hover:bg-active hover:text-ink" aria-label="Link actions">
+                    <MoreHorizontal size={15} />
+                  </MenuTrigger>
+                  <MenuContent align="end">
+                    <MenuItem icon={<ExternalLink size={14} />} onSelect={() => void api.links.open({ id: l.id })}>
+                      Open in browser
+                    </MenuItem>
+                    <MenuItem icon={<Pencil size={14} />} onSelect={() => setLinkDialog({ open: true, link: l })}>
+                      Edit
+                    </MenuItem>
+                    <MenuItem icon={<Copy size={14} />} onSelect={() => void navigator.clipboard.writeText(l.url).then(() => toast.success('Link copied'))}>
+                      Copy URL
+                    </MenuItem>
+                    <MenuSeparator />
+                    <MenuItem danger icon={<Trash2 size={14} />} onSelect={async () => (await confirm({ title: `Remove ${l.title}?`, confirmLabel: 'Remove link', danger: true })) && removeLink.mutate(l.id)}>
+                      Remove
+                    </MenuItem>
+                  </MenuContent>
+                </Menu>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <LinkDialog open={linkDialog.open} onOpenChange={(open) => setLinkDialog((d) => ({ ...d, open }))} courseId={courseId} link={linkDialog.link} knownTags={knownTags} />
       <div className={cn('grid gap-6', preview ? 'grid-cols-[minmax(0,320px)_1fr]' : 'grid-cols-1')}>
         <ul className="flex flex-col">
           {files.map((f) => {
@@ -171,7 +256,9 @@ export function CourseFiles({ courseId }: { courseId: string }) {
                 </Button>
               </span>
             </div>
-            {preview.file.mime.startsWith('image/') ? (
+            {preview.file.mime.startsWith('video/') ? (
+              <video controls autoPlay src={preview.url} className="min-h-0 w-full flex-1 bg-black object-contain" />
+            ) : preview.file.mime.startsWith('image/') ? (
               <div className="flex flex-1 items-center justify-center overflow-auto bg-hover p-4">
                 <img src={preview.url} alt={preview.file.name} className="max-h-full max-w-full" />
               </div>

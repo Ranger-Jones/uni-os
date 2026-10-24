@@ -5,6 +5,7 @@ import * as assignments from '../repo/assignments'
 import * as courses from '../repo/courses'
 import * as events from '../repo/events'
 import * as files from '../repo/files'
+import * as links from '../repo/links'
 import * as grades from '../repo/grades'
 import * as pages from '../repo/pages'
 import { defineTool, id } from './define'
@@ -124,6 +125,26 @@ export const writeTools = [
     run: ({ db }, i) => {
       const f = files.setTags(db, i.file_id, i.tags)
       return { id: f.id, name: f.name, tags: f.tags }
+    }
+  }),
+  defineTool({
+    name: 'add_link',
+    description: 'Add a web resource to a course: a link (course website, paper, tool) or a video (lecture recording, YouTube). Give it a clear title and tags such as lecture, exercise, exam, literature.',
+    input: z.object({ course_id: id('Course'), url: z.string(), title: z.string().optional(), tags: z.array(z.string()).max(10).optional(), note: z.string().optional() }),
+    mutates: true,
+    run: ({ db }, i) => {
+      const l = links.create(db, { courseId: i.course_id, url: i.url, title: i.title, tags: i.tags, note: i.note })
+      return { id: l.id, title: l.title, kind: l.kind, tags: l.tags }
+    }
+  }),
+  defineTool({
+    name: 'update_link',
+    description: 'Change a course link: title, URL, note or tags (tags replace the existing ones).',
+    input: z.object({ link_id: id('Link'), title: z.string().optional(), url: z.string().optional(), note: z.string().optional(), tags: z.array(z.string()).max(10).optional() }),
+    mutates: true,
+    run: ({ db }, i) => {
+      const l = links.update(db, i.link_id, { title: i.title, url: i.url, note: i.note, tags: i.tags })
+      return { id: l.id, title: l.title, kind: l.kind, tags: l.tags }
     }
   })
 ]

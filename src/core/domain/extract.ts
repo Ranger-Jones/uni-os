@@ -6,6 +6,9 @@ export interface Extracted {
   pageCount: number | null
 }
 
+/** Types whose text we extract (everything else is copied without being read into memory). */
+export const extractable = (mime: string): boolean => mime === 'application/pdf' || TEXT_TYPES.has(mime)
+
 const TEXT_TYPES = new Set(['text/plain', 'text/markdown', 'text/csv', 'application/json'])
 
 export async function extractText(data: Uint8Array, mime: string): Promise<Extracted> {
@@ -38,7 +41,13 @@ const MIME: Record<string, string> = {
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  zip: 'application/zip'
+  zip: 'application/zip',
+  mp4: 'video/mp4',
+  m4v: 'video/mp4',
+  mov: 'video/quicktime',
+  webm: 'video/webm',
+  mp3: 'audio/mpeg',
+  m4a: 'audio/mp4'
 }
 
 export const mimeFor = (name: string): string => MIME[name.split('.').pop()?.toLowerCase() ?? ''] ?? 'application/octet-stream'

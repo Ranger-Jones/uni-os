@@ -27,7 +27,7 @@ const TABS: { value: CourseTab; label: string }[] = [
   { value: 'overview', label: 'Overview' },
   { value: 'notes', label: 'Notes' },
   { value: 'assignments', label: 'Assignments' },
-  { value: 'files', label: 'Files' },
+  { value: 'files', label: 'Materials' },
   { value: 'grades', label: 'Grades' },
   { value: 'cards', label: 'Flashcards' }
 ]

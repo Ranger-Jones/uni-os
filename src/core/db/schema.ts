@@ -160,3 +160,14 @@ export const pageLinks = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.fromId, t.toId] })]
 )
+
+export const courseLinks = sqliteTable('course_links', {
+  id: id(),
+  courseId: text('course_id').notNull(),
+  title: text('title').notNull(),
+  url: text('url').notNull(),
+  kind: text('kind', { enum: ['link', 'video'] }).notNull().default('link'),
+  note: text('note'),
+  tags: text('tags', { mode: 'json' }).$type<string[]>().notNull().default([]),
+  ...timestamps
+})

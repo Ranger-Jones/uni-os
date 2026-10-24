@@ -14,7 +14,7 @@ import type { ReadableStream as WebReadableStream } from 'node:stream/web'
 import { app, net, shell } from 'electron'
 import electronUpdater from 'electron-updater'
 import { macSwapScript } from '@core/macSwap'
-import { compareVersions, parseChecksums, parseRelease, type ReleaseInfo, UPDATE_PUBLIC_KEY, UPDATE_REPO, updateAssetFor, type UpdatePlan } from '@core/update'
+import { acceptableBundleVersion, assetMatchesVersion, compareVersions, parseChecksums, parseRelease, type ReleaseInfo, UPDATE_PUBLIC_KEY, UPDATE_REPO, updateAssetFor, type UpdatePlan } from '@core/update'
 import { isTrustedDownload, verifySignedChecksums } from '@core/updateSignature'
 import type { AppContext } from './context'
 
@@ -140,6 +140,7 @@ export class Updater {
   }
 
   private async downloadMac(release: ReleaseInfo, asset: { name: string; url: string; size: number }): Promise<void> {
+    if (!assetMatchesVersion(asset.name, release.version)) throw new Error('the update file does not match the announced version')
     const sumsAsset = release.assets.find((a) => a.name === 'SHA256SUMS.txt')
     const sigAsset = release.assets.find((a) => a.name === 'SHA256SUMS.txt.sig')
     if (!sumsAsset || !sigAsset) throw new Error('the release is not signed')
@@ -191,6 +192,8 @@ export class Updater {
       })
     const bundleId = await run('/usr/bin/defaults', ['read', join(staged, 'Contents', 'Info.plist'), 'CFBundleIdentifier']).catch(() => '')
     if (bundleId !== 'de.eventings.unios') throw new Error('the downloaded app is not UniOS')
+    const bundleVersion = await run('/usr/bin/defaults', ['read', join(staged, 'Contents', 'Info.plist'), 'CFBundleShortVersionString']).catch(() => '')
+    if (!acceptableBundleVersion(bundleVersion, release.version, app.getVersion())) throw new Error('the downloaded app is not the announced newer version')
     await run('/usr/bin/codesign', ['--verify', '--deep', '--strict', staged]).catch(() => {
       throw new Error('the downloaded app has a broken code signature')
     })

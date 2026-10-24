@@ -198,5 +198,22 @@ export const migrations: string[] = [
   );
   CREATE INDEX page_links_to ON page_links(to_id);
   ALTER TABLE files ADD COLUMN tags TEXT NOT NULL DEFAULT '[]';
+  `,
+  /* 3: web links / videos as course resources */ `
+  CREATE TABLE course_links (
+    id TEXT PRIMARY KEY,
+    course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'link',
+    note TEXT,
+    tags TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX course_links_course ON course_links(course_id);
+  CREATE TRIGGER course_links_delete_search AFTER DELETE ON course_links BEGIN
+    DELETE FROM search_fts WHERE entity_type = 'link' AND entity_id = old.id;
+  END;
   `
 ]

@@ -5,6 +5,8 @@ import * as decks from '@core/repo/decks'
 import * as events from '@core/repo/events'
 import * as files from '@core/repo/files'
 import * as grades from '@core/repo/grades'
+import * as links from '@core/repo/links'
+import { isSafeExternalUrl } from '@core/url'
 import * as pages from '@core/repo/pages'
 import * as search from '@core/repo/search'
 import * as semesters from '@core/repo/semesters'
@@ -30,6 +32,7 @@ export interface Host {
   chooseFiles(title: string): Promise<string[]>
   openPath(path: string): Promise<void>
   showInFolder(path: string): void
+  openExternal(url: string): Promise<void>
   applyTheme(theme: Settings['theme']): void
   appInfo(): { version: string; userDataDir: string; platform: string }
 }
@@ -160,6 +163,16 @@ export function createRouter(ctx: AppContext, host: Host, chat: ChatService, upd
       remove: ({ id }: { id: string }) => cards.remove(ctx.db, id),
       review: ({ id, rating }: { id: string; rating: 1 | 2 | 3 | 4 }) => cards.review(ctx.db, id, rating, new Date()),
       generate: ({ pageId }: { pageId: string }) => chat.generateCards(pageId)
+    },
+    links: {
+      list: ({ courseId }: { courseId: string }) => links.list(ctx.db, { courseId }),
+      create: (input: links.LinkInput) => links.create(ctx.db, input),
+      update: ({ id, patch }: Patch<Parameters<typeof links.update>[2]>) => links.update(ctx.db, id, patch),
+      remove: ({ id }: { id: string }) => links.remove(ctx.db, id),
+      open: ({ id }: { id: string }) => {
+        const url = links.get(ctx.db, id).url
+        if (isSafeExternalUrl(url)) return host.openExternal(url)
+      }
     },
     assets: {
       store: ({ pageId, name, data }: { pageId: string; name: string; data: Uint8Array }) => fileUrl(storeAsset(ctx.filesDir, pageId, name, data))

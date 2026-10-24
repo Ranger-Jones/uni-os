@@ -7,6 +7,7 @@ import * as courses from '../repo/courses'
 import * as events from '../repo/events'
 import * as files from '../repo/files'
 import * as grades from '../repo/grades'
+import * as links from '../repo/links'
 import * as pages from '../repo/pages'
 import * as search from '../repo/search'
 import * as semesters from '../repo/semesters'
@@ -66,7 +67,8 @@ export const readTools = [
         open_assignments: assignments.list(db, { courseId: c.id, status: assignments.OPEN_STATUS }).map((a) => ({ id: a.id, title: a.title, due_at: a.dueAt, status: a.status })),
         upcoming_events: events.list(db, { from: today, to: addDays(today, 180), courseId: c.id }).map((e) => ({ id: e.id, title: e.title, kind: e.kind, starts_at: e.startsAt })),
         pages: pages.list(db, { courseId: c.id }).map((p) => ({ id: p.id, title: p.title || 'Untitled', parent_id: p.parentId })),
-        files: files.list(db, { courseId: c.id }).map((f) => ({ id: f.id, name: f.name, tags: f.tags, has_text: f.hasText, pages: f.pageCount }))
+        files: files.list(db, { courseId: c.id }).map((f) => ({ id: f.id, name: f.name, tags: f.tags, has_text: f.hasText, pages: f.pageCount })),
+        links: links.list(db, { courseId: c.id }).map((l) => ({ id: l.id, title: l.title, url: l.url, kind: l.kind, tags: l.tags }))
       }
     }
   }),
@@ -166,6 +168,16 @@ export const readTools = [
     run: ({ db }, i) => {
       courses.get(db, i.course_id)
       return files.list(db, { courseId: i.course_id, tag: i.tag }).map((f) => ({ id: f.id, name: f.name, tags: f.tags, type: f.mime, has_text: f.hasText, pages: f.pageCount }))
+    }
+  }),
+  defineTool({
+    name: 'list_links',
+    description: 'List web resources of a course (links and video links such as lecture recordings) with their tags. Filter with tag.',
+    input: z.object({ course_id: id('Course'), tag: z.string().optional() }),
+    mutates: false,
+    run: ({ db }, i) => {
+      courses.get(db, i.course_id)
+      return links.list(db, { courseId: i.course_id, tag: i.tag }).map((l) => ({ id: l.id, title: l.title, url: l.url, kind: l.kind, tags: l.tags, note: l.note }))
     }
   }),
   defineTool({

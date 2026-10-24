@@ -69,6 +69,7 @@ app.whenReady().then(() => {
       if (err) throw new Error(err)
     },
     showInFolder: (path) => shell.showItemInFolder(path),
+    openExternal: (url) => shell.openExternal(url),
     applyTheme: (theme) => {
       nativeTheme.themeSource = theme
     },

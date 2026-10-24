@@ -1,9 +1,9 @@
-import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { asc, eq } from 'drizzle-orm'
 import type { Db } from '../db/open'
 import { files } from '../db/schema'
-import { extractText, mimeFor } from '../domain/extract'
+import { extractable, extractText, mimeFor } from '../domain/extract'
 import { normalizeTags, suggestTags } from '../domain/fileTags'
 import { AppError, notFound } from '../errors'
 import { resolveInside, safeFileName } from '../paths'
@@ -15,6 +15,8 @@ export type FileRow = typeof files.$inferSelect
 export type FileMeta = Omit<FileRow, 'text'> & { hasText: boolean }
 
 export const MAX_IMPORT_BYTES = 200 * 1024 * 1024
+/** Lecture recordings can be large; they are copied as a stream, never read into memory. */
+export const MAX_MEDIA_BYTES = 8 * 1024 * 1024 * 1024
 
 const toMeta = ({ text, ...rest }: FileRow): FileMeta => ({ ...rest, hasText: !!text })
 
@@ -50,14 +52,19 @@ export async function importFiles(db: Db, filesDir: string, courseId: string, pa
   const out: FileMeta[] = []
   for (const src of paths) {
     const size = statSync(src).size
-    if (size > MAX_IMPORT_BYTES) throw new AppError('VALIDATION', `${basename(src)} is larger than 200 MB`)
-    const data = readFileSync(src)
     const name = safeFileName(basename(src))
+    const mime = mimeFor(name)
+    const media = mime.startsWith('video/') || mime.startsWith('audio/')
+    if (size > (media ? MAX_MEDIA_BYTES : MAX_IMPORT_BYTES)) throw new AppError('VALIDATION', `${basename(src)} is larger than ${media ? '8 GB' : '200 MB'}`)
     const id = newId()
     const storedPath = `${courseId}/${id.slice(0, 8)}-${name}`
-    writeFileSync(join(filesDir, storedPath), data)
-    const mime = mimeFor(name)
-    const { text, pageCount } = await extractText(data, mime)
+    let text: string | null = null
+    let pageCount: number | null = null
+    if (extractable(mime)) {
+      const data = readFileSync(src)
+      writeFileSync(join(filesDir, storedPath), data)
+      ;({ text, pageCount } = await extractText(data, mime))
+    } else copyFileSync(src, join(filesDir, storedPath))
     const t = nowIso()
     const row = db.insert(files).values({ id, courseId, name, storedPath, mime, size, text, pageCount, tags: suggestTags(name), createdAt: t, updatedAt: t }).returning().get()
     reindex(db, row)

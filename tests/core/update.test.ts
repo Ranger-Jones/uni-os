@@ -53,3 +53,13 @@ test('parseChecksums reads shasum output', () => {
   expect(sums.get('UniOS-0.2.1-arm64-mac.zip')).toBe('abc123')
   expect(sums.get('UniOS-Setup-0.2.1-x64.exe')).toBe('def456')
 })
+
+test('update assets must belong to the announced version (no rollback via renamed releases)', async () => {
+  const { assetMatchesVersion, acceptableBundleVersion } = await import('@core/update')
+  expect(assetMatchesVersion('UniOS-0.2.1-arm64-mac.zip', '0.2.1')).toBe(true)
+  expect(assetMatchesVersion('UniOS-0.1.0-arm64-mac.zip', '0.2.1')).toBe(false)
+  expect(assetMatchesVersion('UniOS-0.2.10-arm64-mac.zip', '0.2.1')).toBe(false)
+  expect(acceptableBundleVersion('0.2.1', '0.2.1', '0.2.0')).toBe(true)
+  expect(acceptableBundleVersion('0.1.0', '0.2.1', '0.2.0')).toBe(false)
+  expect(acceptableBundleVersion('0.2.0', '0.2.0', '0.2.0')).toBe(false)
+})

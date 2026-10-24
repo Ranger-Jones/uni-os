@@ -2,7 +2,7 @@ import { isModKey } from '../../lib/platform'
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Command } from 'cmdk'
-import { BookOpen, CalendarDays, FileText, GraduationCap, Paperclip, Plus, Settings, Sun, SquareCheck } from 'lucide-react'
+import { BookOpen, CalendarDays, FileText, GraduationCap, Link2, Paperclip, Plus, Settings, Sun, SquareCheck } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import * as D from '@radix-ui/react-dialog'
 import type { SearchHit } from '@core/repo/search'
@@ -25,7 +25,8 @@ const HIT_ICON: Record<SearchHit['entityType'], ReactNode> = {
   page: <FileText size={15} />,
   file: <Paperclip size={15} />,
   assignment: <SquareCheck size={15} />,
-  course: <BookOpen size={15} />
+  course: <BookOpen size={15} />,
+  link: <Link2 size={15} />
 }
 
 /** Renders «highlight» markers from FTS snippets. */
@@ -72,6 +73,7 @@ export function CommandPalette() {
 
   const openHit = (h: SearchHit) => {
     if (h.entityType === 'page') void navigate({ to: '/pages/$pageId', params: { pageId: h.entityId } })
+    else if (h.entityType === 'link') void api.links.open({ id: h.entityId })
     else if (h.courseId) void navigate({ to: '/courses/$courseId', params: { courseId: h.courseId }, search: { tab: h.entityType === 'file' ? 'files' : 'assignments' } })
   }
 
