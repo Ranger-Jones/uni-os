@@ -66,3 +66,8 @@ test('removing a semester cleans all its courses; purging a page removes its ima
   removeSemesterWithFiles(db, filesDir, semesters.list(db)[0].id)
   expect(existsSync(join(filesDir, f.storedPath))).toBe(false)
 })
+
+test('asset storage rejects page ids that are not plain ids', () => {
+  for (const bad of ['../x', 'a/b', '%2e%2e', 'a\\b', '', '..']) expect(() => storeAsset(filesDir, bad, 'x.png', new Uint8Array([1])), bad).toThrow(/invalid page id/i)
+  expect(pageAssetDir(filesDir, '../x')).toBeNull()
+})
