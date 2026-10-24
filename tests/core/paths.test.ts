@@ -16,3 +16,9 @@ test('safeFileName strips path separators and control characters', () => {
   expect(safeFileName('.hidden')).toBe('hidden')
   expect(safeFileName('   ')).toBe('file')
 })
+
+test('only document-like files may be opened with the default app', async () => {
+  const { isSafeToOpen } = await import('@core/paths')
+  for (const ok of ['a.pdf', 'b.DOCX', 'c.png', 'notes.md', 'slides.key']) expect(isSafeToOpen(ok), ok).toBe(true)
+  for (const bad of ['x.app', 'run.command', 'a.sh', 'setup.exe', 'evil.scpt', 'tool.jar', 'noext', 'a.pdf.command', 'x.terminal', 'y.workflow']) expect(isSafeToOpen(bad), bad).toBe(false)
+})

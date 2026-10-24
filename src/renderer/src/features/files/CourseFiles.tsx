@@ -40,8 +40,13 @@ export function CourseFiles({ courseId }: { courseId: string }) {
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setDragging(false)
-    const paths = Array.from(e.dataTransfer.files).map((f) => window.bridge.pathForFile(f)).filter(Boolean)
-    if (paths.length) void importPaths(() => api.files.import({ courseId, paths }))
+    const dropped = Array.from(e.dataTransfer.files)
+    if (!dropped.length) return
+    void importPaths(async () => {
+      const res = await window.bridge.importDroppedFiles(courseId, dropped)
+      if (!res.ok) throw new Error(res.error.message)
+      return res.data as FileMeta[]
+    })
   }
 
   const openPreview = async (f: FileMeta) => {

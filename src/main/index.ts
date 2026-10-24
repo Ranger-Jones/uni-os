@@ -3,7 +3,8 @@ import { app, BrowserWindow, dialog, nativeTheme, shell } from 'electron'
 import { defaultUserDataDir } from '@core/settings'
 import { isSafeExternalUrl } from '@core/url'
 import { AppContext } from './context'
-import { registerIpc } from './ipc'
+import { registerDropImport, registerIpc } from './ipc'
+import { importFiles } from '@core/repo/files'
 import { handleFileScheme, registerFileScheme } from './protocol'
 import { createRouter } from './router'
 import { watchExternalChanges } from './watcher'
@@ -70,6 +71,7 @@ app.whenReady().then(() => {
     appInfo: () => ({ version: app.getVersion(), userDataDir: app.getPath('userData'), platform: process.platform })
   })
   registerIpc(router)
+  registerDropImport((courseId, paths) => importFiles(ctx.db, ctx.filesDir, courseId, paths))
   mainWindow = createWindow()
   watchExternalChanges(ctx, () => mainWindow)
   app.on('activate', () => {

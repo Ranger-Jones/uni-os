@@ -21,3 +21,11 @@ export function safeFileName(name: string): string {
   const cleaned = base.replace(/[\u0000-\u001f:]/g, '_').replace(/^\.+/, '').trim()
   return cleaned || 'file'
 }
+
+const OPENABLE = new Set(['pdf', 'txt', 'md', 'csv', 'json', 'rtf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'svg', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'odt', 'ods', 'odp', 'pages', 'numbers', 'key', 'epub', 'mp3', 'm4a', 'mp4', 'mov', 'zip'])
+
+/** Whether a stored file may be handed to the OS default app (documents only — never scripts or executables). */
+export function isSafeToOpen(name: string): boolean {
+  const ext = name.includes('.') ? name.split('.').pop()!.toLowerCase() : ''
+  return OPENABLE.has(ext)
+}

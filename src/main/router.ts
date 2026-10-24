@@ -10,6 +10,7 @@ import * as sessions from '@core/repo/sessions'
 import type { Settings } from '@core/settings'
 import { storeAsset } from './assets'
 import { fileUrl } from './protocol'
+import { isSafeToOpen } from '@core/paths'
 import type { AppContext } from './context'
 
 /** Electron-only capabilities the router needs; injected so this file stays importable as a type. */
@@ -83,14 +84,17 @@ export function createRouter(ctx: AppContext, host: Host) {
     },
     files: {
       list: ({ courseId }: { courseId?: string } = {}) => files.list(ctx.db, { courseId }),
-      import: ({ courseId, paths }: { courseId: string; paths: string[] }) => files.importFiles(ctx.db, ctx.filesDir, courseId, paths),
       importDialog: async ({ courseId }: { courseId: string }) => {
         const paths = await host.chooseFiles('Add files')
         return paths.length ? files.importFiles(ctx.db, ctx.filesDir, courseId, paths) : []
       },
       rename: ({ id, name }: { id: string; name: string }) => files.rename(ctx.db, id, name),
       remove: ({ id }: { id: string }) => files.deleteFile(ctx.db, ctx.filesDir, id),
-      open: ({ id }: { id: string }) => host.openPath(files.absolutePath(ctx.db, ctx.filesDir, id)),
+      open: ({ id }: { id: string }) => {
+        const abs = files.absolutePath(ctx.db, ctx.filesDir, id)
+        if (!isSafeToOpen(files.get(ctx.db, id).storedPath)) return host.showInFolder(abs)
+        return host.openPath(abs)
+      },
       reveal: ({ id }: { id: string }) => host.showInFolder(files.absolutePath(ctx.db, ctx.filesDir, id)),
       url: ({ id }: { id: string }) => fileUrl(files.get(ctx.db, id).storedPath)
     },

@@ -10,7 +10,12 @@ const bridge = {
     ipcRenderer.on(channel, listener)
     return () => ipcRenderer.removeListener(channel, listener)
   },
-  pathForFile: (file: File) => webUtils.getPathForFile(file),
+  importDroppedFiles: (courseId: string, files: File[]) =>
+    ipcRenderer.invoke(
+      'files:importDropped',
+      courseId,
+      files.map((f) => webUtils.getPathForFile(f)).filter(Boolean)
+    ),
   platform: process.platform
 }
 
