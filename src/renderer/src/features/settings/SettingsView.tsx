@@ -62,6 +62,7 @@ export function SettingsView() {
             <FolderOpen size={14} /> Change…
           </Button>
         </Row>
+        <BackupRow hasDir={!!s.backupDir} />
         <Row
           label="Backup folder"
           hint={
@@ -251,5 +252,29 @@ function McpSettings() {
         <CopyBlock text={info.data.desktopConfig} />
       </div>
     </>
+  )
+}
+
+function BackupRow({ hasDir }: { hasDir: boolean }) {
+  const status = useQuery({ queryKey: ['backup'], queryFn: () => api.settings.backupStatus() })
+  const run = useApiMutation(() => api.settings.backupNow())
+  const last = status.data?.lastBackupAt
+  return (
+    <Row
+      label="Backups"
+      hint={
+        status.data?.error ? (
+          <span className="text-danger">Last backup failed: {status.data.error}</span>
+        ) : last ? (
+          `Last backup ${new Date(last).toLocaleString()}. The newest 14 daily snapshots are kept.`
+        ) : (
+          'No backup yet.'
+        )
+      }
+    >
+      <Button size="sm" disabled={!hasDir || run.isPending} onClick={() => run.mutate(undefined)}>
+        Back up now
+      </Button>
+    </Row>
   )
 }

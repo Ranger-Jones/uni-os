@@ -6,6 +6,7 @@ import { AppContext } from './context'
 import { registerDropImport, registerIpc } from './ipc'
 import { importFiles } from '@core/repo/files'
 import { handleFileScheme, registerFileScheme } from './protocol'
+import { scheduleBackups } from './backup'
 import { ChatService } from './llm/chat'
 import { createRouter } from './router'
 import { watchExternalChanges } from './watcher'
@@ -75,6 +76,7 @@ app.whenReady().then(() => {
   registerDropImport((courseId, paths) => importFiles(ctx.db, ctx.filesDir, courseId, paths))
   mainWindow = createWindow()
   watchExternalChanges(ctx, () => mainWindow)
+  scheduleBackups(ctx)
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow()
   })

@@ -11,6 +11,7 @@ import * as semesters from '@core/repo/semesters'
 import * as sessions from '@core/repo/sessions'
 import type { Settings } from '@core/settings'
 import { storeAsset } from './assets'
+import { backupNow, backupStatus } from './backup'
 import { fileUrl } from './protocol'
 import { isSafeToOpen } from '@core/paths'
 import type { AppContext } from './context'
@@ -49,6 +50,8 @@ export function createRouter(ctx: AppContext, host: Host, chat: ChatService) {
         const dir = await host.chooseFolder('Choose UniOS data folder')
         return dir ? ctx.updateSettings({ dataDir: dir }) : ctx.settings
       },
+      backupStatus: () => backupStatus(ctx),
+      backupNow: () => backupNow(ctx),
       chooseBackupDir: async () => {
         const dir = await host.chooseFolder('Choose backup folder')
         return dir ? ctx.updateSettings({ backupDir: dir }) : ctx.settings
