@@ -1,76 +1,50 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { DisplayMessage, DisplayPart } from '@core/llm/display'
+import type { DisplayMessage } from '@core/llm/display'
+import { applyLiveEvent, type LiveEvent, type LiveRun } from '@core/llm/live'
 import { api } from '../../lib/api'
 
-interface Approval {
-  id: string
-  name: string
-  input: unknown
-}
-
-interface Live {
-  runId: string
-  userText: string
-  parts: DisplayPart[]
-  approval: Approval | null
-}
-
-type ChatEvent = {
-  runId: string
-  threadId: string
-  type: string
-  delta?: string
-  id?: string
-  name?: string
-  input?: unknown
-  ok?: boolean
-  declined?: boolean
-  message?: string
-  stop?: string
-  note?: string
-}
+type ChatEvent = LiveEvent & { runId: string; threadId: string }
 
 export function useChat(threadId: string | null, onThreadCreated?: (id: string) => void) {
   const qc = useQueryClient()
-  const history = useQuery({ queryKey: ['chat', threadId], queryFn: () => api.ai.history({ threadId: threadId! }), enabled: !!threadId })
-  const [live, setLive] = useState<Live | null>(null)
+  const history = useQuery({
+    queryKey: ['chat', threadId],
+    queryFn: () => api.ai.history({ threadId: threadId! }),
+    enabled: !!threadId,
+    staleTime: 0,
+    refetchOnMount: 'always'
+  })
+  const [live, setLive] = useState<LiveRun | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const liveRef = useRef(live)
   liveRef.current = live
 
+  // Resume a run that is still going in main (e.g. after the panel was closed or the view changed).
+  // Only a snapshot fetched after mounting is current enough (a cached one may predate e.g. an approval request).
+  const serverLive = history.isFetchedAfterMount && !history.isFetching ? (history.data?.live ?? null) : null
+  useEffect(() => {
+    if (serverLive && !liveRef.current) setLive(serverLive)
+  }, [serverLive])
+  // Switching to another existing chat clears the view; a brand-new chat getting its id keeps its run.
+  const prevThread = useRef(threadId)
+  useEffect(() => {
+    if (prevThread.current && prevThread.current !== threadId) {
+      setLive(null)
+      setError(null)
+      setNotice(null)
+    }
+    prevThread.current = threadId
+  }, [threadId])
+
   useEffect(() => {
     return window.bridge.on('chat:event', (raw) => {
       const e = raw as ChatEvent
       if (!liveRef.current || e.runId !== liveRef.current.runId) return
-      setLive((l) => {
-        if (!l) return l
-        const parts = [...l.parts]
-        switch (e.type) {
-          case 'text': {
-            const last = parts.at(-1)
-            if (last?.type === 'text') parts[parts.length - 1] = { ...last, text: last.text + e.delta }
-            else parts.push({ type: 'text', text: e.delta ?? '' })
-            return { ...l, parts }
-          }
-          case 'tool_call':
-            parts.push({ type: 'tool', id: e.id!, name: e.name!, input: e.input, status: 'pending' })
-            return { ...l, parts }
-          case 'approval':
-            return { ...l, approval: { id: e.id!, name: e.name!, input: e.input } }
-          case 'tool_result':
-            return {
-              ...l,
-              approval: l.approval?.id === e.id ? null : l.approval,
-              parts: parts.map((p) => (p.type === 'tool' && p.id === e.id ? { ...p, status: e.declined ? 'declined' : e.ok ? 'ok' : 'error' } : p))
-            }
-          default:
-            return l
-        }
-      })
+      setLive((l) => (l ? applyLiveEvent(l, e) : l))
       if (e.type === 'done' || e.type === 'error') {
-        if (e.type === 'error') setError(e.message ?? 'Something went wrong.')
+        if (e.type === 'error') setError(e.message || 'Something went wrong.')
         if (e.type === 'done' && e.stop === 'refusal') setNotice(e.note ?? 'The model declined this request.')
         if (e.type === 'done' && e.stop === 'max_tokens') setNotice('The answer was cut off because it got too long.')
         if (e.type === 'done' && e.stop === 'max_steps') setNotice('Stopped after many tool calls. Ask again to continue.')
@@ -85,7 +59,7 @@ export function useChat(threadId: string | null, onThreadCreated?: (id: string) 
       setNotice(null)
       try {
         const { runId, threadId: tid } = await api.ai.send({ threadId: threadId ?? undefined, text, ...opts })
-        setLive({ runId, userText: text, parts: [], approval: null })
+        setLive((l) => l ?? { runId, userText: text, parts: [], approval: null })
         if (!threadId) onThreadCreated?.(tid)
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))

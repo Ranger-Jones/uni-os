@@ -20,6 +20,8 @@ export interface LlmAdapter<M> {
   user(text: string): M
   toolResults(results: { id: string; name: string; content: string; isError: boolean }[]): M[]
   turn(history: M[], opts: { system: string; tools: ToolSpec[]; signal?: AbortSignal; onText(delta: string): void }): Promise<TurnResult<M>>
+  /** Tool calls at the end of the history that never got results (e.g. an interrupted run). */
+  danglingToolCalls?(history: M[]): ToolCall[]
 }
 
 export type LoopEvent =
@@ -45,6 +47,8 @@ export async function runChatLoop<M>(opts: {
   onMessages?(msgs: M[]): void
   maxSteps?: number
   signal?: AbortSignal
+  /** Approvals not answered within this time count as declined (default 10 minutes). */
+  approvalTimeoutMs?: number
 }): Promise<M[]> {
   const { adapter, tools, signal } = opts
   const added: M[] = []
@@ -52,13 +56,30 @@ export async function runChatLoop<M>(opts: {
     added.push(...msgs)
     opts.onMessages?.(msgs)
   }
+  const errorResults = (calls: ToolCall[], content: string) => adapter.toolResults(calls.map((c) => ({ id: c.id, name: c.name, content, isError: true })))
+  // History is append-only: close tool calls an earlier run left open, or every provider rejects the request.
+  const dangling = adapter.danglingToolCalls?.(opts.history) ?? []
+  if (dangling.length) push(errorResults(dangling, 'This tool call was interrupted and did not run.'))
   push([adapter.user(opts.userText)])
   const maxSteps = opts.maxSteps ?? 10
+  const timeoutMs = opts.approvalTimeoutMs ?? 10 * 60_000
+  const approveWithTimeout = (call: ToolCall) =>
+    new Promise<boolean>((resolve) => {
+      const t = setTimeout(() => resolve(false), timeoutMs)
+      opts.approve(call).then(
+        (v) => (clearTimeout(t), resolve(v)),
+        () => (clearTimeout(t), resolve(false))
+      )
+    })
 
   for (let step = 0; step < maxSteps; step++) {
     if (signal?.aborted) return finish('aborted')
     const turn = await adapter.turn([...opts.history, ...added], { system: opts.system, tools, signal, onText: (delta) => opts.onEvent({ type: 'text', delta }) })
     push(turn.messages)
+    if (turn.stop !== 'tool_use' && turn.toolCalls.length > 0) {
+      push(errorResults(turn.toolCalls, 'The response was cut off before this tool call could run.'))
+      return finish(turn.stop, turn.note)
+    }
     if (turn.stop !== 'tool_use' || turn.toolCalls.length === 0) return finish(turn.stop, turn.note)
 
     const results: { id: string; name: string; content: string; isError: boolean }[] = []
@@ -69,7 +90,7 @@ export async function runChatLoop<M>(opts: {
       }
       const mutates = tools.find((t) => t.name === call.name)?.mutates ?? true
       opts.onEvent({ type: 'tool_call', id: call.id, name: call.name, input: call.input, mutates })
-      if (mutates && !(await opts.approve(call))) {
+      if (mutates && !(await approveWithTimeout(call))) {
         results.push({ id: call.id, name: call.name, content: 'The user declined this action. Do not retry it unless asked.', isError: true })
         opts.onEvent({ type: 'tool_result', id: call.id, ok: false, declined: true })
         continue

@@ -18,6 +18,11 @@ export function openaiAdapter(apiKey: string, model: string): LlmAdapter<M> {
   const client = new OpenAI({ apiKey })
   return {
     user: (text) => ({ role: 'user', content: text }),
+    danglingToolCalls: (history) => {
+      const last = history.at(-1)
+      if (last?.role !== 'assistant' || !('tool_calls' in last) || !last.tool_calls?.length) return []
+      return last.tool_calls.flatMap((c) => (c.type === 'function' ? [{ id: c.id, name: c.function.name, input: c.function.arguments }] : []))
+    },
     toolResults: (results) => results.map((r) => ({ role: 'tool' as const, tool_call_id: r.id, content: r.content })),
     async turn(history, { system, tools, signal, onText }): Promise<TurnResult<M>> {
       let text = ''

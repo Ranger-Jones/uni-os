@@ -9,6 +9,7 @@ type M = { role: 'user' | 'assistant' | 'tool'; content: unknown }
 export function fakeAdapter(): LlmAdapter<M> {
   return {
     user: (text) => ({ role: 'user', content: text }),
+    danglingToolCalls: () => [],
     toolResults: (results) => [{ role: 'user', content: results.map((r) => ({ type: 'tool_result', tool_use_id: r.id, content: r.content, is_error: r.isError })) }],
     async turn(history, { onText }): Promise<TurnResult<M>> {
       const last = history.at(-1)

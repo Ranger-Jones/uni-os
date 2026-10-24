@@ -1,5 +1,6 @@
 import type { WebContents } from 'electron'
 import { toDisplay } from '@core/llm/display'
+import { applyLiveEvent, emptyLive, type LiveRun } from '@core/llm/live'
 import { runChatLoop, type LlmAdapter, type LoopEvent } from '@core/llm/loop'
 import { buildSystemPrompt } from '@core/llm/systemPrompt'
 import * as chats from '@core/repo/chats'
@@ -15,6 +16,7 @@ export type ChatStreamEvent = { runId: string; threadId: string } & (LoopEvent |
 
 interface Run {
   threadId: string
+  live: LiveRun
   abort: AbortController
   approvals: Map<string, (ok: boolean) => void>
 }
@@ -28,12 +30,22 @@ export class ChatService {
   ) {}
 
   private emit(e: ChatStreamEvent): void {
+    const run = this.runs.get(e.runId)
+    if (run) run.live = applyLiveEvent(run.live, e)
     this.target()?.send('chat:event', e)
   }
 
+  /** Persisted transcript plus the in-flight run (if any), so a reopened view can resume it. */
   history(threadId: string) {
     const t = chats.getThread(this.ctx.db, threadId)
-    return { thread: t, messages: toDisplay(t.provider, chats.nativeHistory(this.ctx.db, threadId)), running: [...this.runs.values()].some((r) => r.threadId === threadId) }
+    const run = [...this.runs.values()].find((r) => r.threadId === threadId)
+    let messages = toDisplay(t.provider, chats.nativeHistory(this.ctx.db, threadId))
+    // While a run is active, its user message and output are shown from the live state instead.
+    if (run) {
+      const lastUser = messages.map((m) => m.role).lastIndexOf('user')
+      if (lastUser >= 0) messages = messages.slice(0, lastUser)
+    }
+    return { thread: t, messages, live: run?.live ?? null }
   }
 
   adapter(provider: 'anthropic' | 'openai', model: string): LlmAdapter<unknown> {
@@ -58,7 +70,7 @@ export class ChatService {
     if ([...this.runs.values()].some((r) => r.threadId === thread.id)) throw new Error('The assistant is still answering in this chat.')
     const adapter = this.adapter(thread.provider, thread.model)
     const runId = crypto.randomUUID()
-    const run: Run = { threadId: thread.id, abort: new AbortController(), approvals: new Map() }
+    const run: Run = { threadId: thread.id, live: emptyLive(runId, input.text), abort: new AbortController(), approvals: new Map() }
     this.runs.set(runId, run)
     const base = { runId, threadId: thread.id }
     const toolCtx = { db, filesDir: this.ctx.filesDir, now: () => new Date() }

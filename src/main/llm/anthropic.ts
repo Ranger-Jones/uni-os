@@ -23,6 +23,11 @@ export function anthropicAdapter(apiKey: string, model: string): LlmAdapter<M> {
 
   return {
     user: (text) => ({ role: 'user', content: text }),
+    danglingToolCalls: (history) => {
+      const last = history.at(-1)
+      if (last?.role !== 'assistant' || !Array.isArray(last.content)) return []
+      return last.content.flatMap((b) => (b.type === 'tool_use' ? [{ id: b.id, name: b.name, input: b.input }] : []))
+    },
     toolResults: (results) => [
       { role: 'user', content: results.map((r) => ({ type: 'tool_result' as const, tool_use_id: r.id, content: r.content, is_error: r.isError })) }
     ],
