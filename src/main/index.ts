@@ -6,6 +6,7 @@ import { AppContext } from './context'
 import { registerDropImport, registerIpc } from './ipc'
 import { importFiles } from '@core/repo/files'
 import { handleFileScheme, registerFileScheme } from './protocol'
+import { ChatService } from './llm/chat'
 import { createRouter } from './router'
 import { watchExternalChanges } from './watcher'
 
@@ -69,7 +70,7 @@ app.whenReady().then(() => {
       nativeTheme.themeSource = theme
     },
     appInfo: () => ({ version: app.getVersion(), userDataDir: app.getPath('userData'), platform: process.platform })
-  })
+  }, new ChatService(ctx, () => mainWindow?.webContents ?? null))
   registerIpc(router)
   registerDropImport((courseId, paths) => importFiles(ctx.db, ctx.filesDir, courseId, paths))
   mainWindow = createWindow()

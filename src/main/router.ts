@@ -12,6 +12,11 @@ import { storeAsset } from './assets'
 import { fileUrl } from './protocol'
 import { isSafeToOpen } from '@core/paths'
 import type { AppContext } from './context'
+import type { ChatService } from './llm/chat'
+import { ANTHROPIC_MODELS } from './llm/anthropic'
+import { OPENAI_MODEL_SUGGESTIONS } from './llm/openai'
+import { keyStatus, setKey, type Provider } from './secrets'
+import * as chats from '@core/repo/chats'
 
 /** Electron-only capabilities the router needs; injected so this file stays importable as a type. */
 export interface Host {
@@ -25,7 +30,7 @@ export interface Host {
 
 type Patch<T> = { id: string; patch: T }
 
-export function createRouter(ctx: AppContext, host: Host) {
+export function createRouter(ctx: AppContext, host: Host, chat: ChatService) {
   return {
     app: {
       info: () => ({ ...host.appInfo(), dataDir: ctx.dataDir })
@@ -97,6 +102,21 @@ export function createRouter(ctx: AppContext, host: Host) {
       },
       reveal: ({ id }: { id: string }) => host.showInFolder(files.absolutePath(ctx.db, ctx.filesDir, id)),
       url: ({ id }: { id: string }) => fileUrl(files.get(ctx.db, id).storedPath)
+    },
+    ai: {
+      keyStatus: () => keyStatus(),
+      setKey: ({ provider, key }: { provider: Provider; key: string | null }) => {
+        setKey(provider, key)
+        return keyStatus()
+      },
+      models: () => ({ anthropic: ANTHROPIC_MODELS, openai: OPENAI_MODEL_SUGGESTIONS }),
+      threads: () => chats.listThreads(ctx.db),
+      history: ({ threadId }: { threadId: string }) => chat.history(threadId),
+      send: (input: Parameters<ChatService['send']>[0]) => chat.send(input),
+      approve: ({ runId, callId, approved }: { runId: string; callId: string; approved: boolean }) => chat.approve(runId, callId, approved),
+      stop: ({ runId }: { runId: string }) => chat.stop(runId),
+      renameThread: ({ id, title }: { id: string; title: string }) => chats.renameThread(ctx.db, id, title),
+      removeThread: ({ id }: { id: string }) => chats.removeThread(ctx.db, id)
     },
     assets: {
       store: ({ name, data }: { name: string; data: Uint8Array }) => storeAsset(ctx, name, data)

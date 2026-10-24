@@ -17,7 +17,7 @@ export const defaultSettings = (): Settings => ({
   backupDir: null,
   theme: 'system',
   defaultProvider: 'anthropic',
-  anthropicModel: 'claude-sonnet-5-5',
+  anthropicModel: 'claude-opus-5-5',
   openaiModel: 'gpt-5',
   lastBackupAt: null
 })
