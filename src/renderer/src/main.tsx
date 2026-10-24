@@ -5,6 +5,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Toaster } from 'sonner'
 import { ConfirmHost } from './components/ui/confirm'
+import { PromptHost } from './components/ui/prompt'
 import { queryClient } from './lib/queries'
 import { useDarkMode } from './lib/theme'
 import { router } from './router'
@@ -15,6 +16,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
       <ConfirmHost />
+      <PromptHost />
       <Toaster position="bottom-right" theme={dark ? 'dark' : 'light'} toastOptions={{ className: 'text-[13px]' }} />
     </QueryClientProvider>
   )

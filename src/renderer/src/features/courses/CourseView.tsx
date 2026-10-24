@@ -12,6 +12,7 @@ import { useApiMutation, useCourse, useSessions } from '../../lib/queries'
 import { courseRoute } from '../../router'
 import { AssignmentList } from '../assignments/AssignmentList'
 import { CourseGrades } from '../grades/CourseGrades'
+import { CourseFiles } from '../files/CourseFiles'
 import { PageTree } from '../pages/PageTree'
 import { usePageActions } from '../pages/usePageActions'
 import { Button } from '../../components/ui/Button'
@@ -101,7 +102,8 @@ export function CourseView() {
         {tab === 'notes' && <Notes courseId={courseId} />}
         {tab === 'assignments' && <AssignmentList courseId={courseId} />}
         {tab === 'grades' && <CourseGrades course={c} />}
-        {!['overview', 'notes', 'assignments', 'grades'].includes(tab) && <EmptyState title="Coming soon" />}
+        {tab === 'files' && <CourseFiles courseId={courseId} />}
+        {tab === 'cards' && <EmptyState title="Coming soon" />}
       </div>
 
       <CourseDialog open={editOpen} onOpenChange={setEditOpen} semesterId={c.semesterId} course={c} sessions={sessions.data} />
