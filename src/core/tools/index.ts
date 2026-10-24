@@ -3,11 +3,12 @@ import { AppError } from '../errors'
 import type { ToolCtx, ToolDef } from './define'
 import { cardTools } from './cards'
 import { readTools } from './read'
+import { testTools } from './tests'
 import { writeTools } from './write'
 
 export type { ToolCtx, ToolDef } from './define'
 
-export const tools: ToolDef[] = [...readTools, ...writeTools, ...cardTools] as ToolDef[]
+export const tools: ToolDef[] = [...readTools, ...writeTools, ...cardTools, ...testTools] as ToolDef[]
 
 export const findTool = (name: string): ToolDef | undefined => tools.find((t) => t.name === name)
 

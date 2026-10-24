@@ -3,6 +3,8 @@ import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../../lib/api'
+import { cn } from '../../lib/cn'
+import { useWideContent } from '../../lib/store'
 import { Layers } from 'lucide-react'
 import { isOverdue, OPEN_STATUS, type Assignment } from '@core/repo/assignments'
 import type { CalendarEvent } from '@core/repo/events'
@@ -37,6 +39,7 @@ export function TodayView() {
   const today = localDate()
   const now = localNow()
   const navigate = useNavigate()
+  const roomy = useWideContent()
   const { semester } = useActiveSemester()
   const courses = useAllCourses()
   const occ = useOccurrences({ from: today, to: today })
@@ -62,7 +65,7 @@ export function TodayView() {
   ].sort((a, b) => a.start.localeCompare(b.start))
 
   return (
-    <div className="mx-auto max-w-5xl px-10 pt-14 pb-24">
+    <div className={cn('mx-auto px-10 pt-14 pb-24 transition-[max-width] duration-200', roomy ? 'max-w-7xl' : 'max-w-5xl')}>
       <header className="mb-8 flex items-end justify-between gap-4">
         <div>
           <h1 className="font-serif text-[32px] leading-tight font-semibold tracking-tight">{longDate(today)}</h1>

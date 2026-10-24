@@ -5,6 +5,7 @@ import {
   CalendarDays,
   ChevronDown,
   GraduationCap,
+  PanelLeftClose,
   type LucideIcon,
   MessageSquare,
   Pencil,
@@ -62,6 +63,7 @@ export function Sidebar() {
   const navigate = useNavigate()
   const setPaletteOpen = useUi((s) => s.setPaletteOpen)
   const setSemesterId = useUi((s) => s.setSemesterId)
+  const setCollapsed = useUi((s) => s.setSidebarCollapsed)
   const { semester, all } = useActiveSemester()
   const courses = useCourses({ semesterId: semester?.id })
   const [semesterDialog, setSemesterDialog] = useState<{ open: boolean; editId?: string }>({ open: false })
@@ -73,7 +75,16 @@ export function Sidebar() {
 
   return (
     <>
-      <div className="drag h-11 shrink-0" />
+      <div className="drag flex h-11 shrink-0 items-center justify-end px-2">
+        <button
+          onClick={() => setCollapsed(true)}
+          title={`Hide sidebar (${shortcut('\\')})`}
+          aria-label="Hide sidebar"
+          className="no-drag rounded-md p-1 text-muted opacity-70 hover:bg-hover hover:text-ink hover:opacity-100"
+        >
+          <PanelLeftClose size={16} />
+        </button>
+      </div>
       <nav className="flex min-h-0 flex-1 flex-col gap-px overflow-y-auto px-2 pb-3">
         <SidebarRow onClick={() => setPaletteOpen(true)} className="text-muted">
           <Search size={15} />

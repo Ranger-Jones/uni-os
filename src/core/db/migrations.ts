@@ -215,5 +215,51 @@ export const migrations: string[] = [
   CREATE TRIGGER course_links_delete_search AFTER DELETE ON course_links BEGIN
     DELETE FROM search_fts WHERE entity_type = 'link' AND entity_id = old.id;
   END;
+  `,
+  /* 4: quizzes and test exams */ `
+  CREATE TABLE tests (
+    id TEXT PRIMARY KEY,
+    course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('quiz','exam')),
+    title TEXT NOT NULL,
+    description TEXT,
+    time_limit_min INTEGER,
+    file_ids TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX tests_course ON tests(course_id);
+  CREATE TABLE test_questions (
+    id TEXT PRIMARY KEY,
+    test_id TEXT NOT NULL REFERENCES tests(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    prompt TEXT NOT NULL,
+    options TEXT NOT NULL DEFAULT '[]',
+    solution TEXT NOT NULL,
+    points REAL NOT NULL DEFAULT 1,
+    explanation TEXT,
+    source_page_id TEXT REFERENCES pages(id) ON DELETE SET NULL,
+    sort_order REAL NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX test_questions_test ON test_questions(test_id);
+  CREATE TABLE test_attempts (
+    id TEXT PRIMARY KEY,
+    test_id TEXT NOT NULL REFERENCES tests(id) ON DELETE CASCADE,
+    mode TEXT NOT NULL CHECK (mode IN ('interactive','paper')),
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    score REAL NOT NULL DEFAULT 0,
+    max_score REAL NOT NULL DEFAULT 0,
+    answers TEXT NOT NULL DEFAULT '[]',
+    note TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX test_attempts_test ON test_attempts(test_id);
+  CREATE TRIGGER tests_delete_search AFTER DELETE ON tests BEGIN
+    DELETE FROM search_fts WHERE entity_type = 'test' AND entity_id = old.id;
+  END;
   `
 ]

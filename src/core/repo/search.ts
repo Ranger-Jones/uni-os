@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm'
 import type { Db } from '../db/open'
 
-export type EntityType = 'page' | 'file' | 'assignment' | 'course' | 'link'
+export type EntityType = 'page' | 'file' | 'assignment' | 'course' | 'link' | 'test'
 
 export interface SearchDoc {
   entityType: EntityType

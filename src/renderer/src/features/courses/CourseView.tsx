@@ -1,6 +1,7 @@
 import { useNavigate } from '@tanstack/react-router'
 import { Archive, MessageSquare, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
-import { useUi } from '../../lib/store'
+import { useUi, useWideContent } from '../../lib/store'
+import { cn } from '../../lib/cn'
 import { useEffect, useState } from 'react'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '../../components/ui/Menu'
@@ -15,13 +16,14 @@ import { AssignmentList } from '../assignments/AssignmentList'
 import { CourseGrades } from '../grades/CourseGrades'
 import { CourseFiles } from '../files/CourseFiles'
 import { Decks } from '../flashcards/Decks'
+import { CourseTests } from '../tests/CourseTests'
 import { PageTree } from '../pages/PageTree'
 import { usePageActions } from '../pages/usePageActions'
 import { Button } from '../../components/ui/Button'
 import { Plus } from 'lucide-react'
 import { CourseDialog, SESSION_KIND_LABEL, WEEKDAYS } from './CourseDialog'
 
-export type CourseTab = 'overview' | 'notes' | 'assignments' | 'files' | 'grades' | 'cards'
+export type CourseTab = 'overview' | 'notes' | 'assignments' | 'files' | 'grades' | 'cards' | 'tests'
 
 const TABS: { value: CourseTab; label: string }[] = [
   { value: 'overview', label: 'Overview' },
@@ -29,7 +31,8 @@ const TABS: { value: CourseTab; label: string }[] = [
   { value: 'assignments', label: 'Assignments' },
   { value: 'files', label: 'Materials' },
   { value: 'grades', label: 'Grades' },
-  { value: 'cards', label: 'Flashcards' }
+  { value: 'cards', label: 'Flashcards' },
+  { value: 'tests', label: 'Tests' }
 ]
 
 export function CourseView() {
@@ -40,6 +43,7 @@ export function CourseView() {
   const sessions = useSessions(courseId)
   const [editOpen, setEditOpen] = useState(false)
   const ask = useUi((s) => s.askAssistant)
+  const roomy = useWideContent()
   const update = useApiMutation((patch: Parameters<typeof api.courses.update>[0]['patch']) => api.courses.update({ id: courseId, patch }))
   const remove = useApiMutation(() => api.courses.remove({ id: courseId }), { success: 'Course deleted' })
 
@@ -50,7 +54,7 @@ export function CourseView() {
   const meta = [c.code, c.ects ? `${c.ects} ECTS` : null, c.lecturer, c.location].filter(Boolean)
 
   return (
-    <div className="mx-auto max-w-5xl px-10 pt-12 pb-24">
+    <div className={cn('mx-auto px-10 pt-12 pb-24 transition-[max-width] duration-200', roomy ? 'max-w-7xl' : 'max-w-5xl')}>
       <header className="relative mb-5 pl-5">
         <span className="absolute top-1 bottom-1 left-0 w-1.5 rounded-full" style={{ background: color.solid }} />
         <div className="flex items-start justify-between gap-4">
@@ -87,7 +91,7 @@ export function CourseView() {
                 onSelect={async () => {
                   const ok = await confirm({
                     title: `Delete ${c.name}?`,
-                    body: 'Notes, assignments, files, grades and flashcards of this course will be deleted. Backups keep older versions.',
+                    body: 'Notes, assignments, files, grades, flashcards and tests of this course will be deleted. Backups keep older versions.',
                     confirmLabel: 'Delete course',
                     danger: true
                   })
@@ -110,6 +114,7 @@ export function CourseView() {
         {tab === 'grades' && <CourseGrades course={c} />}
         {tab === 'files' && <CourseFiles courseId={courseId} />}
         {tab === 'cards' && <Decks courseId={courseId} />}
+        {tab === 'tests' && <CourseTests courseId={courseId} />}
       </div>
 
       <CourseDialog open={editOpen} onOpenChange={setEditOpen} semesterId={c.semesterId} course={c} sessions={sessions.data} />

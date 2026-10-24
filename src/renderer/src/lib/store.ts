@@ -16,6 +16,8 @@ interface UiState {
   setPaletteOpen: (open: boolean) => void
   sidebarWidth: number
   setSidebarWidth: (w: number) => void
+  sidebarCollapsed: boolean
+  setSidebarCollapsed: (collapsed: boolean) => void
 }
 
 export const useUi = create<UiState>()(
@@ -34,11 +36,16 @@ export const useUi = create<UiState>()(
       paletteOpen: false,
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
       sidebarWidth: 248,
-      setSidebarWidth: (sidebarWidth) => set({ sidebarWidth })
+      setSidebarWidth: (sidebarWidth) => set({ sidebarWidth }),
+      sidebarCollapsed: false,
+      setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed })
     }),
     {
       name: 'unios-ui',
-      partialize: (s) => ({ semesterId: s.semesterId, expanded: s.expanded, sidebarWidth: s.sidebarWidth, chatOpen: s.chatOpen })
+      partialize: (s) => ({ semesterId: s.semesterId, expanded: s.expanded, sidebarWidth: s.sidebarWidth, sidebarCollapsed: s.sidebarCollapsed, chatOpen: s.chatOpen })
     }
   )
 )
+
+/** Content may use more width while the sidebar is collapsed. */
+export const useWideContent = (): boolean => useUi((s) => s.sidebarCollapsed)

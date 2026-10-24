@@ -1,7 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import { Copy, Layers, MessageSquare, MoreHorizontal, Smile, Sparkles, Trash2 } from 'lucide-react'
 import { GenerateCardsDialog } from '../flashcards/GenerateCardsDialog'
-import { useUi } from '../../lib/store'
+import { useUi, useWideContent } from '../../lib/store'
+import { cn } from '../../lib/cn'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { EmojiPicker } from '../../components/ui/EmojiPicker'
 import { EmptyState } from '../../components/ui/EmptyState'
@@ -33,6 +34,7 @@ type PageData = NonNullable<ReturnType<typeof usePage>['data']>
 function PageEditor({ page }: { page: PageData }) {
   const actions = usePageActions()
   const ask = useUi((s) => s.askAssistant)
+  const roomy = useWideContent()
   const [generate, setGenerate] = useState(false)
   const ancestors = usePageAncestors(page.id)
   const editorRef = useRef<EditorHandle>(null)
@@ -110,7 +112,7 @@ function PageEditor({ page }: { page: PageData }) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-16 pt-12 pb-40">
+    <div className={cn('mx-auto px-16 pt-12 pb-40 transition-[max-width] duration-200', roomy ? 'max-w-5xl' : 'max-w-3xl')}>
       <div className="no-drag mb-8 flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
           <Breadcrumbs courseId={page.courseId} ancestors={ancestors.data ?? []} />

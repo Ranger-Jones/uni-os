@@ -10,6 +10,9 @@ import { getKey } from '../secrets'
 import { anthropicAdapter } from './anthropic'
 import { fakeAdapter } from './fake'
 import { generateCards } from './generateCards'
+import { buildMaterial, generateQuestions, gradeOpenAnswers } from '@core/llm/testGen'
+import { autoGrade, type QuestionType, type Response, type TestKind } from '@core/domain/tests'
+import * as tests from '@core/repo/tests'
 import { openaiAdapter } from './openai'
 
 export type ChatStreamEvent = { runId: string; threadId: string } & (LoopEvent | { type: 'error'; message: string } | { type: 'approval'; id: string; name: string; input: unknown })
@@ -98,9 +101,39 @@ export class ChatService {
     return base
   }
 
-  generateCards(pageId: string) {
+  private defaultAdapter() {
     const s = this.ctx.settings
-    return generateCards(this.ctx.db, this.adapter(s.defaultProvider, s.defaultProvider === 'anthropic' ? s.anthropicModel : s.openaiModel), pageId)
+    return this.adapter(s.defaultProvider, s.defaultProvider === 'anthropic' ? s.anthropicModel : s.openaiModel)
+  }
+
+  generateCards(pageId: string) {
+    return generateCards(this.ctx.db, this.defaultAdapter(), pageId)
+  }
+
+  /** Question proposals for a new quiz or exam (not saved). */
+  async generateTest(input: { courseId: string; pageIds: string[]; fileIds: string[]; kind: TestKind; count: number; types: QuestionType[]; focus?: string }) {
+    const material = await buildMaterial(this.ctx.db, input)
+    return generateQuestions(this.defaultAdapter(), { material: material.text, pages: material.pages, kind: input.kind, count: input.count, types: input.types, focus: input.focus })
+  }
+
+  /** Grade one answer right away (quiz mode); open answers go to the model. */
+  async checkAnswer(questionId: string, response: Response) {
+    const q = tests.getQuestion(this.ctx.db, questionId)
+    const auto = autoGrade(q, response)
+    if (auto) return { ...auto, feedback: null }
+    const text = typeof response === 'string' ? response : ''
+    if (!text.trim()) return { points: 0, correct: false, feedback: null }
+    const [g] = await gradeOpenAnswers(this.defaultAdapter(), [{ questionId: q.id, prompt: q.prompt, modelAnswer: 'modelAnswer' in q.solution ? q.solution.modelAnswer : '', response: text, points: q.points }])
+    if (!g) throw new Error('The model did not return a grade. Try again.')
+    return { points: g.points, correct: g.points === q.points, feedback: g.feedback }
+  }
+
+  /** Grade all open answers of an attempt that are still pending. */
+  async gradeAttempt(attemptId: string) {
+    const pending = tests.pendingAnswers(this.ctx.db, attemptId)
+    if (!pending.length) return tests.getAttempt(this.ctx.db, attemptId)
+    const grades = await gradeOpenAnswers(this.defaultAdapter(), pending)
+    return tests.applyGrades(this.ctx.db, attemptId, grades)
   }
 
   approve(runId: string, callId: string, approved: boolean): void {

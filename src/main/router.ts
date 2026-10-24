@@ -6,6 +6,8 @@ import * as events from '@core/repo/events'
 import * as files from '@core/repo/files'
 import * as grades from '@core/repo/grades'
 import * as links from '@core/repo/links'
+import * as tests from '@core/repo/tests'
+import type { QuestionInput, Response } from '@core/domain/tests'
 import { isSafeExternalUrl } from '@core/url'
 import * as pages from '@core/repo/pages'
 import * as search from '@core/repo/search'
@@ -163,6 +165,23 @@ export function createRouter(ctx: AppContext, host: Host, chat: ChatService, upd
       remove: ({ id }: { id: string }) => cards.remove(ctx.db, id),
       review: ({ id, rating }: { id: string; rating: 1 | 2 | 3 | 4 }) => cards.review(ctx.db, id, rating, new Date()),
       generate: ({ pageId }: { pageId: string }) => chat.generateCards(pageId)
+    },
+    tests: {
+      list: ({ courseId }: { courseId: string }) => tests.list(ctx.db, { courseId }),
+      get: ({ id }: { id: string }) => tests.get(ctx.db, id),
+      create: (input: tests.TestInput) => tests.create(ctx.db, input),
+      update: ({ id, patch }: Patch<Parameters<typeof tests.update>[2]>) => tests.update(ctx.db, id, patch),
+      remove: ({ id }: { id: string }) => tests.remove(ctx.db, id),
+      addQuestions: ({ testId, questions }: { testId: string; questions: QuestionInput[] }) => tests.addQuestions(ctx.db, testId, questions),
+      removeQuestion: ({ id }: { id: string }) => tests.removeQuestion(ctx.db, id),
+      generate: (input: Parameters<ChatService['generateTest']>[0]) => chat.generateTest(input),
+      check: ({ questionId, response }: { questionId: string; response: Response }) => chat.checkAnswer(questionId, response),
+      attempts: ({ testId }: { testId: string }) => tests.listAttempts(ctx.db, testId),
+      submit: ({ testId, startedAt, answers }: { testId: string; startedAt: string; answers: tests.SubmittedAnswer[] }) => tests.submitAttempt(ctx.db, testId, { startedAt, answers }),
+      gradeAttempt: ({ attemptId }: { attemptId: string }) => chat.gradeAttempt(attemptId),
+      overridePoints: ({ attemptId, questionId, points }: { attemptId: string; questionId: string; points: number }) => tests.overridePoints(ctx.db, attemptId, questionId, points),
+      recordPaper: ({ testId, ...input }: { testId: string; date: string; score: number; maxScore: number; note?: string | null }) => tests.recordPaperAttempt(ctx.db, testId, input),
+      removeAttempt: ({ id }: { id: string }) => tests.removeAttempt(ctx.db, id)
     },
     links: {
       list: ({ courseId }: { courseId: string }) => links.list(ctx.db, { courseId }),

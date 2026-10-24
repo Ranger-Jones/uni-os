@@ -1,4 +1,5 @@
 import { integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import type { QuestionType, Response, Solution, TestKind } from '../domain/tests'
 
 export const COURSE_COLORS = ['gray', 'red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink'] as const
 
@@ -169,5 +170,53 @@ export const courseLinks = sqliteTable('course_links', {
   kind: text('kind', { enum: ['link', 'video'] }).notNull().default('link'),
   note: text('note'),
   tags: text('tags', { mode: 'json' }).$type<string[]>().notNull().default([]),
+  ...timestamps
+})
+
+export interface AttemptAnswer {
+  questionId: string
+  response: Response
+  points: number
+  /** Full points reached. */
+  correct: boolean
+  grading: 'auto' | 'ai' | 'manual' | 'pending'
+  feedback?: string | null
+}
+
+export const tests = sqliteTable('tests', {
+  id: id(),
+  courseId: text('course_id').notNull(),
+  kind: text('kind').$type<TestKind>().notNull(),
+  title: text('title').notNull(),
+  description: text('description'),
+  timeLimitMin: integer('time_limit_min'),
+  fileIds: text('file_ids', { mode: 'json' }).$type<string[]>().notNull().default([]),
+  ...timestamps
+})
+
+export const testQuestions = sqliteTable('test_questions', {
+  id: id(),
+  testId: text('test_id').notNull(),
+  type: text('type').$type<QuestionType>().notNull(),
+  prompt: text('prompt').notNull(),
+  options: text('options', { mode: 'json' }).$type<string[]>().notNull().default([]),
+  solution: text('solution', { mode: 'json' }).$type<Solution>().notNull(),
+  points: real('points').notNull().default(1),
+  explanation: text('explanation'),
+  sourcePageId: text('source_page_id'),
+  sortOrder: real('sort_order').notNull().default(0),
+  ...timestamps
+})
+
+export const testAttempts = sqliteTable('test_attempts', {
+  id: id(),
+  testId: text('test_id').notNull(),
+  mode: text('mode').$type<'interactive' | 'paper'>().notNull(),
+  startedAt: text('started_at').notNull(),
+  finishedAt: text('finished_at'),
+  score: real('score').notNull().default(0),
+  maxScore: real('max_score').notNull().default(0),
+  answers: text('answers', { mode: 'json' }).$type<AttemptAnswer[]>().notNull().default([]),
+  note: text('note'),
   ...timestamps
 })

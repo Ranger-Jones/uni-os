@@ -27,6 +27,7 @@ export function buildSystemPrompt(db: Db, opts: { now: Date; courseId?: string |
     '- When you create or change something, the user confirms each change in the app. Make the change directly when asked instead of asking for permission in text first.',
     '- Write notes and summaries as clear Markdown with headings and lists. In chat answers use $…$ / $$…$$ for math. In note pages (create_page, append_to_page, update_page) put each formula in its own ```latex fenced block — the editor renders those as formulas.',
     '- Link related note pages with [Title](unios://page/<id>) — they become clickable page links in the app. Course materials are files (with tags such as lecture, exercise, solution, notes, exam, literature) and web links/videos (list_links, add_link); use them to find the right material.',
+    '- Each course can have quizzes and test exams (list_tests, get_test, create_test, add_test_questions, list_test_attempts). When asked for practice questions or a mock exam, base the questions on the course pages and files, mix question types, give every question an explanation and link the source page. Results show which questions the user got wrong — use them to suggest what to revise.',
     '- Reply in the language the user writes in. Be concise. Refer to pages, files and assignments by their titles, never by ids.'
   ]
   return lines.filter((l, i, a) => !(l === '' && a[i - 1] === '')).join('\n')

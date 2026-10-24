@@ -20,6 +20,28 @@ export function fakeAdapter(): LlmAdapter<M> {
         const call = { type: 'tool_use', id: `t${Date.now()}`, name: 'propose_flashcards', input: { cards: [{ front: 'Wann heißt eine Folge konvergent?', back: 'Wenn es ein $a$ gibt mit $\\forall \\varepsilon>0\\ \\exists N: |a_n-a|<\\varepsilon$ für alle $n \\ge N$.' }, { front: 'Was ist eine Cauchy-Folge?', back: 'Eine Folge, deren Glieder beliebig nah beieinander liegen: $|a_n - a_m| < \\varepsilon$ für $n,m \\ge N$.' }, { front: 'Jede konvergente Folge ist …?', back: 'beschränkt.' }] } }
         return { messages: [{ role: 'assistant', content: [call] }], toolCalls: [{ id: call.id, name: call.name, input: call.input }], stop: 'tool_use' }
       }
+      if (ask.startsWith('write ') && ask.includes('propose_questions')) {
+        const input = {
+          title: 'Konvergenz-Quiz',
+          questions: [
+            { type: 'single', prompt: 'Welche Folge ist konvergent?', options: ['$a_n = n$', '$a_n = 1/n$', '$a_n = (-1)^n$'], correct_options: [1], explanation: '$1/n \\to 0$.' },
+            { type: 'multiple', prompt: 'Welche Aussagen gelten für jede konvergente Folge?', options: ['Sie ist beschränkt', 'Sie ist monoton', 'Sie ist eine Cauchy-Folge'], correct_options: [0, 2], points: 2 },
+            { type: 'truefalse', prompt: 'Jede beschränkte Folge ist konvergent.', true_false: false, explanation: 'Gegenbeispiel: $(-1)^n$.' },
+            { type: 'number', prompt: 'Berechne $\\lim_{n\\to\\infty} \\frac{2n+1}{n}$.', number_answer: 2, tolerance: 0.001 },
+            { type: 'text', prompt: 'Erkläre, was eine Cauchy-Folge ist.', model_answer: 'Für jedes $\\varepsilon > 0$ gibt es ein $N$, sodass $|a_n - a_m| < \\varepsilon$ für alle $n, m \\ge N$.', points: 3 }
+          ]
+        }
+        const call = { type: 'tool_use', id: `t${Date.now()}`, name: 'propose_questions', input }
+        await new Promise((r) => setTimeout(r, 400))
+        return { messages: [{ role: 'assistant', content: [call] }], toolCalls: [{ id: call.id, name: call.name, input }], stop: 'tool_use' }
+      }
+      if (ask.startsWith('grade these student answers')) {
+        const n = (ask.match(/## answer \d+/g) ?? []).length
+        const input = { grades: Array.from({ length: n }, (_, index) => ({ index, points: 1.5, feedback: 'Die Idee stimmt, aber die Quantoren fehlen.' })) }
+        const call = { type: 'tool_use', id: `t${Date.now()}`, name: 'grade_answers', input }
+        await new Promise((r) => setTimeout(r, 400))
+        return { messages: [{ role: 'assistant', content: [call] }], toolCalls: [{ id: call.id, name: call.name, input }], stop: 'tool_use' }
+      }
       await new Promise((r) => setTimeout(r, 150))
       if (!afterTool) {
         const call = ask.includes('create')
