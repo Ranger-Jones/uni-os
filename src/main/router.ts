@@ -7,6 +7,7 @@ import * as files from '@core/repo/files'
 import * as grades from '@core/repo/grades'
 import * as links from '@core/repo/links'
 import * as tests from '@core/repo/tests'
+import type { Box } from '@core/domain/pdfRender'
 import type { QuestionInput, Response } from '@core/domain/tests'
 import { isSafeExternalUrl } from '@core/url'
 import * as pages from '@core/repo/pages'
@@ -14,7 +15,7 @@ import * as search from '@core/repo/search'
 import * as semesters from '@core/repo/semesters'
 import * as sessions from '@core/repo/sessions'
 import type { Settings } from '@core/settings'
-import { storeAsset } from '@core/assets'
+import { cropAsset, storeAsset } from '@core/assets'
 import { purgePageWithFiles, removeCourseWithFiles, removeSemesterWithFiles } from '@core/repo/deletion'
 import { backupNow, backupStatus } from './backup'
 import { fileUrl } from './protocol'
@@ -194,7 +195,11 @@ export function createRouter(ctx: AppContext, host: Host, chat: ChatService, upd
       }
     },
     assets: {
-      store: ({ pageId, name, data }: { pageId: string; name: string; data: Uint8Array }) => fileUrl(storeAsset(ctx.filesDir, pageId, name, data))
+      store: ({ pageId, name, data }: { pageId: string; name: string; data: Uint8Array }) => fileUrl(storeAsset(ctx.filesDir, pageId, name, data)),
+      crop: async ({ pageId, url, box }: { pageId: string; url: string; box: Box }) => {
+        const r = await cropAsset(ctx.filesDir, pageId, url, box)
+        return { url: fileUrl(r.rel), width: r.width, height: r.height }
+      }
     },
     assignments: {
       list: (f: assignments.AssignmentFilter = {}) => assignments.list(ctx.db, f),

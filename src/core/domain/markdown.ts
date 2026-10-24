@@ -13,6 +13,14 @@ const codeText = (content: unknown) => (Array.isArray(content) ? content.map((c:
 const PLACEHOLDER = 'https://unios.invalid/page/'
 const PAGE_LINK = /^https:\/\/unios\.invalid\/page\/([\w-]+)$/
 
+// The markdown exporter drops image widths; they ride along in the URL and come out as <img width>, which the parser reads back.
+const WIDTH_MARK = '#unios-width='
+const escAttr = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+const restoreWidths = (md: string): string =>
+  md
+    .replace(/src="([^"]*?)#unios-width=(\d+)"/g, 'src="$1" width="$2"')
+    .replace(/!\[([^\]]*)\]\(([^)\s]*?)#unios-width=(\d+)\)/g, (_, alt: string, src: string, w: string) => `<img alt="${escAttr(alt)}" src="${src}" width="${w}">`)
+
 /** Page mentions travel as [Title](unios://page/<id>) links. */
 const mapInline = (content: unknown, fn: (c: Json) => Json): unknown => {
   if (Array.isArray(content)) return content.map((c: Json) => fn(c))
@@ -35,7 +43,11 @@ const linkToMention = (c: Json): Json => {
  */
 const toPortable = (blocks: Json[]): Json[] =>
   blocks.map((b) => ({
-    ...(b.type === 'math' ? { ...b, type: 'codeBlock', props: { language: 'latex' }, content: [{ type: 'text', text: b.props?.latex ?? '', styles: {} }] } : { ...b, content: mapInline(b.content, mentionToLink) }),
+    ...(b.type === 'math'
+      ? { ...b, type: 'codeBlock', props: { language: 'latex' }, content: [{ type: 'text', text: b.props?.latex ?? '', styles: {} }] }
+      : b.type === 'image' && b.props?.previewWidth && b.props?.url
+        ? { ...b, props: { ...b.props, url: `${b.props.url}${WIDTH_MARK}${Math.round(b.props.previewWidth)}` } }
+        : { ...b, content: mapInline(b.content, mentionToLink) }),
     children: Array.isArray(b.children) ? toPortable(b.children) : []
   }))
 
@@ -56,5 +68,5 @@ export async function markdownToBlocks(md: string): Promise<unknown[]> {
 export async function blocksToMarkdown(blocks: unknown[]): Promise<string> {
   if (blocks.length === 0) return ''
   const out = await getEditor().blocksToMarkdownLossy(toPortable(blocks as Json[]) as never)
-  return out.split(PLACEHOLDER).join('unios://page/').trim()
+  return restoreWidths(out.split(PLACEHOLDER).join('unios://page/')).trim()
 }

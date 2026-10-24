@@ -1,11 +1,12 @@
 import { createReadStream, statSync } from 'node:fs'
 import { Readable } from 'node:stream'
 import { protocol } from 'electron'
+import { FILE_SCHEME } from '@core/assets'
 import { mimeFor } from '@core/domain/extract'
 import { parseRange, resolveInside } from '@core/paths'
 import type { AppContext } from './context'
 
-export const FILE_SCHEME = 'unios-file'
+export { FILE_SCHEME, fileUrl } from '@core/assets'
 
 /** Must run before app 'ready'. */
 export function registerFileScheme(): void {
@@ -42,5 +43,3 @@ export function handleFileScheme(ctx: AppContext): void {
     })
   })
 }
-
-export const fileUrl = (rel: string): string => `${FILE_SCHEME}://local/${rel.split('/').map(encodeURIComponent).join('/')}`

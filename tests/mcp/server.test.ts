@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
@@ -7,17 +7,20 @@ import { expect, test } from 'vitest'
 import { mergeClaudeDesktopConfig } from '@core/mcp/config'
 import { createMcpServer } from '@core/mcp/server'
 import * as assignments from '@core/repo/assignments'
+import * as files from '@core/repo/files'
 import { memDb } from '../helpers/db'
 import { seedCourse } from '../helpers/fixtures'
+import { makeSlidePdf } from '../helpers/pdf'
 
 async function connect() {
   const { db } = memDb()
   const course = seedCourse(db, 'Analysis I')
-  const server = createMcpServer({ db, filesDir: join(mkdtempSync(join(tmpdir(), 'unios-mcp-')), 'files'), now: () => new Date('2026-10-24T12:00:00') })
+  const filesDir = join(mkdtempSync(join(tmpdir(), 'unios-mcp-')), 'files')
+  const server = createMcpServer({ db, filesDir, now: () => new Date('2026-10-24T12:00:00') })
   const [a, b] = InMemoryTransport.createLinkedPair()
   const client = new Client({ name: 'test', version: '1.0.0' })
   await Promise.all([server.connect(a), client.connect(b)])
-  return { db, client, course }
+  return { db, client, course, filesDir }
 }
 
 const text = (r: unknown) => ((r as { content: { text: string }[] }).content[0].text)
@@ -37,6 +40,18 @@ test('read and write tools work end to end', async () => {
   const created = await client.callTool({ name: 'create_assignment', arguments: { course_id: course.id, title: 'Blatt 6' } })
   expect(created.isError).toBeFalsy()
   expect(assignments.list(db).map((a) => a.title)).toEqual(['Blatt 6'])
+})
+
+test('view_pdf_page sends the rendered page as image content next to the JSON', async () => {
+  const { client, db, course, filesDir } = await connect()
+  const src = join(mkdtempSync(join(tmpdir(), 'unios-mcp-src-')), 'VL1.pdf')
+  writeFileSync(src, makeSlidePdf('Folie'))
+  const [f] = await files.importFiles(db, filesDir, course.id, [src])
+  const r = (await client.callTool({ name: 'view_pdf_page', arguments: { file_id: f.id, page: 1 } })) as { content: { type: string; text?: string; mimeType?: string; data?: string }[] }
+  expect(r.content.map((c) => c.type)).toEqual(['text', 'image'])
+  expect(JSON.parse(r.content[0].text!)).toMatchObject({ file: 'VL1.pdf', page_count: 1 })
+  expect(r.content[1].mimeType).toBe('image/png')
+  expect(r.content[1].data!.length).toBeGreaterThan(1000)
 })
 
 test('errors come back as tool errors, not protocol failures', async () => {
