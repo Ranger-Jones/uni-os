@@ -49,6 +49,7 @@
     "remark-math": "^6.0.0",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
+    "ts-fsrs": "^5.4.2",
     "unpdf": "^1.9.1",
     "y-prosemirror": "^1.3.7",
     "y-protocols": "^1.0.7",
