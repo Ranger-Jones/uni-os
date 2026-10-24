@@ -103,3 +103,25 @@ test('duplicate copies content as a sibling with "(copy)" title', () => {
   expect(d).toMatchObject({ title: 'Orig (copy)', courseId, parentId: null, contentText: 'Inhalt' })
   expect(d.id).not.toBe(p.id)
 })
+
+test('ancestors returns the chain from root to direct parent', () => {
+  const a = pages.create(db, { courseId, title: 'A' })
+  const b = pages.create(db, { courseId, parentId: a.id, title: 'B' })
+  const c = pages.create(db, { courseId, parentId: b.id, title: 'C' })
+  expect(pages.ancestors(db, c.id).map((p) => p.title)).toEqual(['A', 'B'])
+  expect(pages.ancestors(db, a.id)).toEqual([])
+})
+
+test('moving a page to the top level of another course moves its subtree to that course', () => {
+  const other = seedCourse(db, 'Physik')
+  const a = pages.create(db, { courseId, title: 'A' })
+  const b = pages.create(db, { courseId, parentId: a.id, title: 'B' })
+  pages.update(db, a.id, { parentId: null, courseId: other.id })
+  expect(pages.get(db, a.id).courseId).toBe(other.id)
+  expect(pages.get(db, b.id).courseId).toBe(other.id)
+  expect(search_course(b.id)).toBe(other.id)
+})
+
+function search_course(id: string) {
+  return search.query(db, 'B').find((h) => h.entityId === id)?.courseId
+}

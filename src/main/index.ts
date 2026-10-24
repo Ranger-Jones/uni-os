@@ -4,11 +4,13 @@ import { defaultUserDataDir } from '@core/settings'
 import { isSafeExternalUrl } from '@core/url'
 import { AppContext } from './context'
 import { registerIpc } from './ipc'
+import { handleFileScheme, registerFileScheme } from './protocol'
 import { createRouter } from './router'
 import { watchExternalChanges } from './watcher'
 
 app.setName('UniOS')
 app.setPath('userData', defaultUserDataDir())
+registerFileScheme()
 
 let mainWindow: BrowserWindow | null = null
 const ctx = new AppContext(join(app.getPath('userData'), 'settings.json'))
@@ -47,6 +49,7 @@ function createWindow(): BrowserWindow {
 
 app.whenReady().then(() => {
   nativeTheme.themeSource = ctx.settings.theme
+  handleFileScheme(ctx)
   const router = createRouter(ctx, {
     chooseFolder: async (title) => {
       const r = await dialog.showOpenDialog({ title, properties: ['openDirectory', 'createDirectory'] })

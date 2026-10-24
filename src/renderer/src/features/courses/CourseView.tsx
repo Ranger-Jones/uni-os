@@ -10,6 +10,10 @@ import { api } from '../../lib/api'
 import { courseColor } from '../../lib/colors'
 import { useApiMutation, useCourse, useSessions } from '../../lib/queries'
 import { courseRoute } from '../../router'
+import { PageTree } from '../pages/PageTree'
+import { usePageActions } from '../pages/usePageActions'
+import { Button } from '../../components/ui/Button'
+import { Plus } from 'lucide-react'
 import { CourseDialog, SESSION_KIND_LABEL, WEEKDAYS } from './CourseDialog'
 
 export type CourseTab = 'overview' | 'notes' | 'assignments' | 'files' | 'grades' | 'cards'
@@ -92,7 +96,8 @@ export function CourseView() {
 
       <div className="pt-6">
         {tab === 'overview' && <Overview courseId={courseId} overview={c.overview ?? ''} sessions={sessions.data ?? []} onSave={(overview) => update.mutate({ overview })} />}
-        {tab !== 'overview' && <EmptyState title="Coming soon" />}
+        {tab === 'notes' && <Notes courseId={courseId} />}
+        {!['overview', 'notes'].includes(tab) && <EmptyState title="Coming soon" />}
       </div>
 
       <CourseDialog open={editOpen} onOpenChange={setEditOpen} semesterId={c.semesterId} course={c} sessions={sessions.data} />
@@ -141,6 +146,21 @@ function Overview({
           ))}
         </ul>
       </aside>
+    </div>
+  )
+}
+
+function Notes({ courseId }: { courseId: string }) {
+  const actions = usePageActions()
+  return (
+    <div className="max-w-xl">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-[13px] text-muted">Drag pages to reorder or nest them.</p>
+        <Button size="sm" variant="primary" onClick={() => void actions.create({ courseId })}>
+          <Plus size={14} /> New page
+        </Button>
+      </div>
+      <PageTree courseId={courseId} emptyHint="No notes yet. Create the first page for this course." />
     </div>
   )
 }

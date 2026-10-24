@@ -1,5 +1,6 @@
 import { Outlet } from '@tanstack/react-router'
 import { useUi } from '../../lib/store'
+import { CommandPalette } from './CommandPalette'
 import { Sidebar } from './Sidebar'
 
 export function AppShell() {
@@ -30,6 +31,7 @@ export function AppShell() {
           <Outlet />
         </div>
       </main>
+      <CommandPalette />
     </div>
   )
 }

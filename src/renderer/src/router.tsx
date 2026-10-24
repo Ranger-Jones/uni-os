@@ -5,6 +5,7 @@ import { ChatView } from './features/chat/ChatView'
 import { CourseView, type CourseTab } from './features/courses/CourseView'
 import { FlashcardsView } from './features/flashcards/FlashcardsView'
 import { GradesView } from './features/grades/GradesView'
+import { PageView } from './features/pages/PageView'
 import { SettingsView } from './features/settings/SettingsView'
 import { TodayView } from './features/today/TodayView'
 
@@ -33,9 +34,10 @@ export const courseRoute = createRoute({
   validateSearch: (s: Record<string, unknown>): { tab?: CourseTab } => (typeof s.tab === 'string' ? { tab: s.tab as CourseTab } : {}),
   component: CourseView
 })
+export const pageRoute = createRoute({ getParentRoute: () => root, path: '/pages/$pageId', component: PageView })
 const settings = createRoute({ getParentRoute: () => root, path: '/settings', component: SettingsView })
 
-const routeTree = root.addChildren([index, today, calendar, grades, flashcards, chat, courseRoute, settings])
+const routeTree = root.addChildren([index, today, calendar, grades, flashcards, chat, courseRoute, pageRoute, settings])
 
 export const router = createRouter({ routeTree, history: createHashHistory(), defaultPreload: false })
 

@@ -33,6 +33,7 @@ export const PageCreate = z.object({
   content: z.array(z.unknown()).optional()
 })
 export const PagePatch = z.object({
+  courseId: z.string().nullish(),
   title: z.string().optional(),
   icon: z.string().nullish(),
   parentId: z.string().nullish(),
@@ -124,7 +125,7 @@ function subtreeIds(db: Db, id: string): string[] {
 export function update(db: Db, id: string, patch: z.input<typeof PagePatch>): Page {
   const v = parse(PagePatch, patch)
   const current = get(db, id)
-  let courseId = current.courseId
+  let courseId = v.courseId !== undefined ? v.courseId : current.courseId
   if (v.parentId !== undefined && v.parentId !== null) {
     if (subtreeIds(db, id).includes(v.parentId)) throw new AppError('VALIDATION', 'A page cannot be moved into itself or its descendant')
     courseId = get(db, v.parentId).courseId
@@ -188,4 +189,16 @@ export function duplicate(db: Db, id: string): Page {
     icon: src.icon,
     content: JSON.parse(src.content) as unknown[]
   })
+}
+
+/** Breadcrumb chain from the top-level page down to the direct parent of `id`. */
+export function ancestors(db: Db, id: string): Pick<Page, 'id' | 'title' | 'icon'>[] {
+  const chain: Pick<Page, 'id' | 'title' | 'icon'>[] = []
+  let parentId = get(db, id).parentId
+  while (parentId && chain.length < 50) {
+    const p = get(db, parentId)
+    chain.unshift({ id: p.id, title: p.title, icon: p.icon })
+    parentId = p.parentId
+  }
+  return chain
 }

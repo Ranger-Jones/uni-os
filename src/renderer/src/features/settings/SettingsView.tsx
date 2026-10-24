@@ -5,7 +5,8 @@ import { Page } from '../../components/layout/Page'
 import { Button } from '../../components/ui/Button'
 import { api } from '../../lib/api'
 import { cn } from '../../lib/cn'
-import { useApiMutation, useAppInfo, useSettings } from '../../lib/queries'
+import { useApiMutation, useAppInfo, useSettings, useTrash } from '../../lib/queries'
+import { confirm } from '../../components/ui/confirm'
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -90,11 +91,50 @@ export function SettingsView() {
         </Row>
       </Section>
 
+      <Section title="Trash">
+        <TrashList />
+      </Section>
+
       <Section title="About">
         <Row label="UniOS" hint={`Version ${info.data?.version ?? '–'}`}>
           {null}
         </Row>
       </Section>
     </Page>
+  )
+}
+
+function TrashList() {
+  const trash = useTrash()
+  const restore = useApiMutation((id: string) => api.pages.restore({ id }), { success: 'Page restored' })
+  const purge = useApiMutation((id: string) => api.pages.purge({ id }))
+  if (!trash.data?.length) return <p className="text-[13px] text-muted">Pages you delete stay here until you remove them for good.</p>
+  return (
+    <ul className="flex flex-col">
+      {trash.data.map((p) => (
+        <li key={p.id} className="flex items-center justify-between gap-4 border-b border-line py-1.5 last:border-b-0">
+          <span className="truncate text-sm">
+            {p.icon} {p.title || 'Untitled'}
+            <span className="ml-2 text-[12px] text-faint">deleted {new Date(p.deletedAt!).toLocaleDateString()}</span>
+          </span>
+          <span className="flex gap-1">
+            <Button size="sm" variant="ghost" onClick={() => restore.mutate(p.id)}>
+              Restore
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-danger"
+              onClick={async () => {
+                if (await confirm({ title: 'Delete page permanently?', body: 'This page and its sub-pages cannot be restored afterwards.', confirmLabel: 'Delete permanently', danger: true }))
+                  purge.mutate(p.id)
+              }}
+            >
+              Delete
+            </Button>
+          </span>
+        </li>
+      ))}
+    </ul>
   )
 }

@@ -1,6 +1,7 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   BookOpenCheck,
+  ChevronRight,
   CalendarDays,
   ChevronDown,
   GraduationCap,
@@ -21,6 +22,8 @@ import { useActiveSemester, useApiMutation, useCourses } from '../../lib/queries
 import { useUi } from '../../lib/store'
 import { CourseDialog } from '../../features/courses/CourseDialog'
 import { SemesterDialog } from '../../features/courses/SemesterDialog'
+import { PageTree } from '../../features/pages/PageTree'
+import { usePageActions } from '../../features/pages/usePageActions'
 import { confirm } from '../ui/confirm'
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from '../ui/Menu'
 
@@ -61,6 +64,9 @@ export function Sidebar() {
   const courses = useCourses({ semesterId: semester?.id })
   const [semesterDialog, setSemesterDialog] = useState<{ open: boolean; editId?: string }>({ open: false })
   const [courseDialog, setCourseDialog] = useState(false)
+  const expanded = useUi((s) => s.expanded)
+  const toggle = useUi((s) => s.toggleExpanded)
+  const pageActions = usePageActions()
   const removeSemester = useApiMutation((id: string) => api.semesters.remove({ id }), { success: 'Semester deleted' })
 
   return (
@@ -149,19 +155,57 @@ export function Sidebar() {
         )}
         {courses.data?.map((c) => {
           const active = path.startsWith(`/courses/${c.id}`)
+          const open = !!expanded[`course:${c.id}`]
           return (
-            <SidebarRow
-              key={c.id}
-              active={active}
-              className="relative pl-3"
-              onClick={() => void navigate({ to: '/courses/$courseId', params: { courseId: c.id } })}
-            >
-              <span className="absolute top-1.5 bottom-1.5 left-0.5 w-[3px] rounded-full" style={{ background: courseColor(c.color).solid }} />
-              <span className="w-4 text-center text-[13px]">{c.icon ?? '📘'}</span>
-              <span className="truncate">{c.name}</span>
-            </SidebarRow>
+            <div key={c.id}>
+              <SidebarRow
+                active={active}
+                className="relative pl-1"
+                onClick={() => void navigate({ to: '/courses/$courseId', params: { courseId: c.id } })}
+              >
+                <span className="absolute top-1.5 bottom-1.5 left-0.5 w-[3px] rounded-full" style={{ background: courseColor(c.color).solid }} />
+                <button
+                  className="ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded text-faint hover:bg-active hover:text-ink"
+                  aria-label={open ? 'Collapse' : 'Expand'}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    toggle(`course:${c.id}`)
+                  }}
+                >
+                  <ChevronRight size={13} className={cn('transition-transform', open && 'rotate-90')} />
+                </button>
+                <span className="w-4 text-center text-[13px]">{c.icon ?? '📘'}</span>
+                <span className="flex-1 truncate">{c.name}</span>
+                <button
+                  className="hidden rounded p-0.5 text-muted group-hover:block hover:bg-active hover:text-ink"
+                  aria-label={`New page in ${c.name}`}
+                  title="New page"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    toggle(`course:${c.id}`, true)
+                    void pageActions.create({ courseId: c.id })
+                  }}
+                >
+                  <Plus size={14} />
+                </button>
+              </SidebarRow>
+              {open && <PageTree courseId={c.id} depth={1} emptyHint="No pages yet" />}
+            </div>
           )
         })}
+
+        <div className="mt-5 mb-1 flex items-center justify-between pr-1 pl-2">
+          <span className="text-xs font-medium text-muted">Pages</span>
+          <button
+            onClick={() => void pageActions.create({ courseId: null })}
+            className="rounded p-0.5 text-muted opacity-70 hover:bg-hover hover:text-ink hover:opacity-100"
+            aria-label="New page"
+            title="New page"
+          >
+            <Plus size={14} />
+          </button>
+        </div>
+        <PageTree courseId={null} emptyHint="Pages that belong to no course" />
       </nav>
       <div className="border-t border-line px-2 py-2">
         <Link to="/settings">

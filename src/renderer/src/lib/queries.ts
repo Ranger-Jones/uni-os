@@ -45,3 +45,9 @@ export const useCourses = (opts: { semesterId?: string; includeArchived?: boolea
 export const useCourse = (id: string) => useQuery({ queryKey: ['course', id], queryFn: () => api.courses.get({ id }) })
 export const useSessions = (courseId: string) =>
   useQuery({ queryKey: ['sessions', courseId], queryFn: () => api.sessions.listForCourse({ courseId }) })
+
+export const usePageTree = (courseId: string | null) =>
+  useQuery({ queryKey: ['pages', 'tree', courseId], queryFn: () => api.pages.tree({ courseId }) })
+export const usePage = (id: string) => useQuery({ queryKey: ['page', id], queryFn: () => api.pages.get({ id }) })
+export const usePageAncestors = (id: string) => useQuery({ queryKey: ['page', id, 'ancestors'], queryFn: () => api.pages.ancestors({ id }) })
+export const useTrash = () => useQuery({ queryKey: ['pages', 'trash'], queryFn: () => api.pages.listTrash() })
