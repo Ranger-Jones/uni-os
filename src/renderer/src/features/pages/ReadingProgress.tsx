@@ -60,7 +60,8 @@ export function ReadingProgress() {
         aria-valuemax={100}
         aria-valuenow={percent}
         aria-hidden={!visible}
-        style={{ right: state.right, bottom: GAP }}
+        // --mascot-space: room the study buddy takes in the same corner (set by Mascot, 0 when hidden).
+        style={{ right: `calc(${state.right}px + var(--mascot-space, 0px))`, bottom: GAP }}
         className={cn(
           'no-drag pointer-events-none fixed z-40 flex items-center gap-2 rounded-full border border-line bg-raised/80 px-2.5 py-1.5 shadow-[0_2px_10px_rgba(0,0,0,0.06)] backdrop-blur-md transition-opacity duration-300',
           visible && state.scrollable ? 'opacity-80' : 'opacity-0'

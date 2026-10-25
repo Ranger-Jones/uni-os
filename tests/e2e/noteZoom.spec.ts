@@ -47,7 +47,8 @@ test('zoom a note with the keyboard and the slider', async () => {
   await hud.press('ArrowLeft')
   await expect(hud).toHaveAttribute('aria-valuetext', '110 %')
   await win.mouse.move(5, 600)
-  await expect(win.locator('div.fixed[aria-hidden]')).toHaveAttribute('aria-hidden', 'true', { timeout: 3000 })
+  // The zoom overlay (not the reading-progress pill, which is also a fixed element with aria-hidden) hides again.
+  await expect(win.locator('div.fixed[aria-hidden]').filter({ hasText: 'Zoom' })).toHaveAttribute('aria-hidden', 'true', { timeout: 3000 })
 
   await win.getByRole('button', { name: 'Page actions' }).click()
   const slider = win.getByRole('menu').getByRole('slider', { name: 'Zoom' })

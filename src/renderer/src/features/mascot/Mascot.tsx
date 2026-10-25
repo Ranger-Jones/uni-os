@@ -78,7 +78,15 @@ export function Mascot() {
     }
   }, [m?.dance])
 
-  if (!settings || !m?.enabled || path === '/chat') return null
+  const shown = !!settings && !!m?.enabled && path !== '/chat'
+  const reserve = shown ? (SIZE[m!.size] ?? SIZE.medium) + 16 : 0
+  // Other corner widgets (the reading progress of notes) move aside by this much.
+  useEffect(() => {
+    document.documentElement.style.setProperty('--mascot-space', `${reserve}px`)
+    return () => void document.documentElement.style.removeProperty('--mascot-space')
+  }, [reserve])
+
+  if (!shown || !settings || !m) return null
   const provider: LlmProvider = m.provider === 'default' ? settings.defaultProvider : m.provider
   const ready = !!keys.data?.[provider]
   const mode = chat.running ? 'think' : open ? 'idle' : m.dance === 'always' || (m.dance === 'sometimes' && burst) ? 'dance' : 'idle'
