@@ -188,6 +188,12 @@ textarea,
   overflow-y: hidden;
 }
 
+/* Note zoom (see PageView): only the editor text is zoomed; its side padding stays at 54 screen px for the side menu. */
+.unios-editor .bn-editor {
+  zoom: var(--note-zoom, 1);
+  padding-inline: calc(54px / var(--note-zoom, 1));
+}
+
 /* Formula blocks in the editor */
 .unios-math {
   padding: 0.4em 0;
