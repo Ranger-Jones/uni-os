@@ -1,4 +1,5 @@
 import type { LlmProvider } from '@core/settings'
+import type { View } from '@core/llm/viewContext'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DisplayMessage } from '@core/llm/display'
@@ -55,7 +56,7 @@ export function useChat(threadId: string | null, onThreadCreated?: (id: string) 
   }, [qc])
 
   const send = useCallback(
-    async (text: string, opts: { courseId?: string | null; provider?: LlmProvider; model?: string } = {}) => {
+    async (text: string, opts: { courseId?: string | null; provider?: LlmProvider; model?: string; mascot?: { view: View } } = {}) => {
       setError(null)
       setNotice(null)
       try {

@@ -15,6 +15,8 @@ import { autoGrade, type QuestionType, type Response, type TestKind } from '@cor
 import * as tests from '@core/repo/tests'
 import { openaiAdapter } from './openai'
 import { normalizeLocalUrl } from '@core/llm/local'
+import { describeView, type View } from '@core/llm/viewContext'
+import { mascotPersona } from '@core/domain/mascot'
 import { modelFor, type LlmProvider } from '@core/settings'
 
 export type ChatStreamEvent = { runId: string; threadId: string } & (LoopEvent | { type: 'error'; message: string } | { type: 'approval'; id: string; name: string; input: unknown })
@@ -65,13 +67,13 @@ export class ChatService {
   }
 
   /** Starts a run in the background and returns its id; progress arrives as chat:event messages. */
-  send(input: { threadId?: string; text: string; courseId?: string | null; provider?: LlmProvider; model?: string }): { runId: string; threadId: string } {
+  send(input: { threadId?: string; text: string; courseId?: string | null; provider?: LlmProvider; model?: string; mascot?: { view: View } }): { runId: string; threadId: string } {
     const db = this.ctx.db
     const s = this.ctx.settings
     const thread = input.threadId
       ? chats.getThread(db, input.threadId)
       : chats.createThread(db, {
-          title: input.text.replace(/\s+/g, ' ').slice(0, 60),
+          title: `${input.mascot ? `${s.mascot.name || 'Mascot'} · ` : ''}${input.text.replace(/\s+/g, ' ')}`.slice(0, 60),
           courseId: input.courseId ?? null,
           provider: input.provider ?? s.defaultProvider,
           model: input.model ?? modelFor(s, input.provider ?? s.defaultProvider)
@@ -84,23 +86,34 @@ export class ChatService {
     const base = { runId, threadId: thread.id }
     const toolCtx = { db, filesDir: this.ctx.filesDir, now: () => new Date() }
 
-    void runChatLoop({
-      adapter,
-      history: chats.nativeHistory(db, thread.id),
-      userText: input.text,
-      system: buildSystemPrompt(db, { now: new Date(), courseId: thread.courseId }),
-      tools: toolSpecs(),
-      signal: run.abort.signal,
-      exec: (call) => runTool(toolCtx, call.name, call.input),
-      approve: (call) =>
-        new Promise<boolean>((resolve) => {
-          run.approvals.set(call.id, resolve)
-          this.emit({ ...base, type: 'approval', id: call.id, name: call.name, input: call.input })
-          run.abort.signal.addEventListener('abort', () => resolve(false), { once: true })
-        }),
-      onEvent: (e) => this.emit({ ...base, ...e }),
-      onMessages: (msgs) => chats.appendMessages(db, thread.id, msgs as { role: string }[])
-    })
+    const basePrompt = buildSystemPrompt(db, { now: new Date(), courseId: thread.courseId })
+    // The mascot answers in its own voice and sees the screen the user is on when they ask.
+    const system = input.mascot
+      ? describeView(db, input.mascot.view)
+          .catch(() => '')
+          .then((view) => [basePrompt, mascotPersona(s.mascot), view].filter(Boolean).join('\n\n'))
+      : Promise.resolve(basePrompt)
+
+    void system
+      .then((systemPrompt) =>
+        runChatLoop({
+          adapter,
+          history: chats.nativeHistory(db, thread.id),
+          userText: input.text,
+          system: systemPrompt,
+          tools: toolSpecs(),
+          signal: run.abort.signal,
+          exec: (call) => runTool(toolCtx, call.name, call.input),
+          approve: (call) =>
+            new Promise<boolean>((resolve) => {
+              run.approvals.set(call.id, resolve)
+              this.emit({ ...base, type: 'approval', id: call.id, name: call.name, input: call.input })
+              run.abort.signal.addEventListener('abort', () => resolve(false), { once: true })
+            }),
+          onEvent: (e) => this.emit({ ...base, ...e }),
+          onMessages: (msgs) => chats.appendMessages(db, thread.id, msgs as { role: string }[])
+        })
+      )
       .catch((err: unknown) => this.emit({ ...base, type: 'error', message: err instanceof Error ? err.message : String(err) }))
       .finally(() => this.runs.delete(runId))
 

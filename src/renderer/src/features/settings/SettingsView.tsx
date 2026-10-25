@@ -11,6 +11,7 @@ import { cn } from '../../lib/cn'
 import { useApiMutation, useAppInfo, useSettings, useTrash } from '../../lib/queries'
 import { useUpdateState } from '../update/useUpdate'
 import { confirm } from '../../components/ui/confirm'
+import { MascotSettings } from '../mascot/MascotSettings'
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -82,6 +83,10 @@ export function SettingsView() {
 
       <Section title="Assistant">
         <AiSettings settings={s} onChange={(patch) => update.mutate(patch)} />
+      </Section>
+
+      <Section title="Study buddy">
+        <MascotSettings settings={s} onChange={(patch) => update.mutate(patch)} />
       </Section>
 
       <Section title="Connect Claude">

@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { defaultMascot, type MascotSettings } from './domain/mascot'
 
 export type LlmProvider = 'anthropic' | 'openai' | 'local'
 
@@ -17,6 +18,8 @@ export interface Settings {
   localModel: string
   /** Let reasoning models (qwen3, gpt-oss …) think before answering: sometimes better, much slower. */
   localThinking: boolean
+  /** The study buddy in the bottom-right corner. */
+  mascot: MascotSettings
   lastBackupAt: string | null
   /** Look for new releases on GitHub at startup and every few hours. */
   checkUpdates: boolean
@@ -34,6 +37,7 @@ export const defaultSettings = (): Settings => ({
   localBaseUrl: 'http://localhost:11434/v1',
   localModel: '',
   localThinking: false,
+  mascot: defaultMascot(),
   lastBackupAt: null,
   checkUpdates: true,
   lastSeenVersion: null
@@ -61,7 +65,8 @@ export function readSettings(file: string): Settings {
   const defaults = defaultSettings()
   if (!existsSync(file)) return defaults
   try {
-    return { ...defaults, ...(JSON.parse(readFileSync(file, 'utf8')) as Partial<Settings>) }
+    const saved = JSON.parse(readFileSync(file, 'utf8')) as Partial<Settings>
+    return { ...defaults, ...saved, mascot: { ...defaults.mascot, ...(saved.mascot ?? {}) } }
   } catch {
     return defaults
   }

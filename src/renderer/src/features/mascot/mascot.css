@@ -1,0 +1,90 @@
+/* Mascot choreography. Parts use view-box coordinates (viewBox 120×150) as their pivot points. */
+.mascot svg * {
+  transform-box: view-box;
+}
+.mascot .m-root { transform-origin: 60px 136px; }
+.mascot .m-head { transform-origin: 60px 82px; }
+.mascot .m-arm-l { transform-origin: 40px 89px; transform: rotate(14deg); }
+.mascot .m-arm-r { transform-origin: 80px 89px; transform: rotate(-14deg); }
+.mascot .m-tail { transform-origin: 82px 112px; }
+.mascot .m-leg-l { transform-origin: 48px 129px; }
+.mascot .m-leg-r { transform-origin: 72px 129px; }
+
+/* Sticker look: white die-cut edge and a soft shadow, readable on light and dark backgrounds. */
+.mascot .figure {
+  filter: drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff)
+    drop-shadow(0 4px 6px rgba(0, 0, 0, 0.18));
+}
+
+/* Idle: breathe and blink. */
+.mascot .m-root { animation: m-breathe 3.2s ease-in-out infinite; }
+.mascot .m-eyes { animation: m-blink 4.6s infinite; }
+@keyframes m-breathe {
+  50% { transform: scale(1.015, 0.985); }
+}
+@keyframes m-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.1); }
+}
+
+/* Dance: one beat is 0.6s — bounce with squash, arms take turns, head and tail sway against the body. */
+.mascot[data-mode='dance'] .m-root { animation: m-bounce 0.6s ease-in-out infinite alternate; }
+.mascot[data-mode='dance'] .m-arm-l { animation: m-arm-l 1.2s ease-in-out infinite; }
+.mascot[data-mode='dance'] .m-arm-r { animation: m-arm-r 1.2s ease-in-out infinite; }
+.mascot[data-mode='dance'] .m-head { animation: m-sway 1.2s ease-in-out infinite; }
+.mascot[data-mode='dance'] .m-tail { animation: m-swish 0.6s ease-in-out infinite alternate; }
+.mascot[data-mode='dance'] .m-leg-l { animation: m-step 1.2s ease-in-out infinite; }
+.mascot[data-mode='dance'] .m-leg-r { animation: m-step 1.2s ease-in-out infinite 0.6s; }
+@keyframes m-bounce {
+  from { transform: translateY(0) scale(1.03, 0.97); }
+  to { transform: translateY(-7px) scale(0.98, 1.02); }
+}
+@keyframes m-arm-l {
+  0%, 100% { transform: rotate(14deg); }
+  50% { transform: rotate(150deg); }
+}
+@keyframes m-arm-r {
+  0%, 100% { transform: rotate(-150deg); }
+  50% { transform: rotate(-14deg); }
+}
+@keyframes m-sway {
+  0%, 100% { transform: rotate(-7deg); }
+  50% { transform: rotate(7deg); }
+}
+@keyframes m-swish {
+  from { transform: rotate(-12deg); }
+  to { transform: rotate(14deg); }
+}
+@keyframes m-step {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-4px); }
+}
+
+/* Thinking (while the answer is being written): head tilted, slow nod. */
+.mascot[data-mode='think'] .m-head { animation: m-think 1.6s ease-in-out infinite; }
+.mascot[data-mode='think'] .m-arm-r { transform: rotate(-120deg); }
+@keyframes m-think {
+  0%, 100% { transform: rotate(-10deg); }
+  50% { transform: rotate(-4deg) translateY(1px); }
+}
+
+/* Hover (when not dancing): a wave. */
+.mascot[data-mode='idle']:hover .m-arm-r { animation: m-wave 0.5s ease-in-out infinite alternate; }
+@keyframes m-wave {
+  from { transform: rotate(-150deg); }
+  to { transform: rotate(-110deg); }
+}
+
+.mascot .thought span {
+  animation: m-dot 1.2s infinite;
+}
+.mascot .thought span:nth-child(2) { animation-delay: 0.2s; }
+.mascot .thought span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes m-dot {
+  0%, 60%, 100% { opacity: 0.25; }
+  30% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mascot *, .mascot .m-root { animation: none !important; }
+}

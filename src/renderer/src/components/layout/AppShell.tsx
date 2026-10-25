@@ -4,6 +4,7 @@ import { Outlet } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { useUi } from '../../lib/store'
 import { ChatPanel } from '../../features/chat/ChatPanel'
+import { Mascot } from '../../features/mascot/Mascot'
 import { CommandPalette } from './CommandPalette'
 import { Sidebar } from './Sidebar'
 
@@ -68,6 +69,7 @@ export function AppShell() {
         </div>
       </main>
       {chatOpen && <ChatPanel />}
+      <Mascot />
       <CommandPalette />
     </div>
   )

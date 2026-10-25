@@ -73,7 +73,9 @@ export function Conversation({
   compact,
   hasKey,
   header,
-  draft
+  draft,
+  emptyState,
+  placeholder = 'Ask about your courses…'
 }: {
   chat: ReturnType<typeof useChat>
   onSend: (text: string) => void
@@ -81,6 +83,9 @@ export function Conversation({
   hasKey: boolean
   header?: React.ReactNode
   draft?: string
+  /** Replaces the default welcome text of an empty chat. */
+  emptyState?: React.ReactNode
+  placeholder?: string
 }) {
   const [text, setText] = useState('')
   const end = useRef<HTMLDivElement>(null)
@@ -113,7 +118,8 @@ export function Conversation({
       {header}
       <div className={cn('min-h-0 flex-1 overflow-y-auto', compact ? 'px-4' : 'px-8')}>
         <div className={cn('mx-auto flex flex-col gap-4 py-6', !compact && 'max-w-2xl')}>
-          {chat.messages.length === 0 && !chat.running && (
+          {chat.messages.length === 0 && !chat.running && emptyState}
+          {chat.messages.length === 0 && !chat.running && !emptyState && (
             <div className="pt-[8vh] text-center">
               <p className="font-serif text-2xl font-semibold">How can I help with your studies?</p>
               <p className="mt-1 text-[13px] text-muted">The assistant can read your notes, files, deadlines and grades. Changes need your approval.</p>
@@ -164,7 +170,7 @@ export function Conversation({
                   submit()
                 }
               }}
-              placeholder="Ask about your courses…"
+              placeholder={placeholder}
               className={cn('max-h-40 min-h-8 flex-1 resize-none bg-transparent px-2 py-1.5 text-[14px] outline-none placeholder:text-faint', text.split('\n').length < 7 && 'overflow-hidden')}
               style={{ height: Math.min(160, 32 + (text.split('\n').length - 1) * 20) }}
             />

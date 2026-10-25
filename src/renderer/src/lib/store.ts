@@ -23,6 +23,10 @@ interface UiState {
   setSidebarCollapsed: (collapsed: boolean) => void
   noteZoom: number
   setNoteZoom: (zoom: number) => void
+  mascotOpen: boolean
+  setMascotOpen: (open: boolean) => void
+  mascotThreadId: string | null
+  setMascotThreadId: (id: string | null) => void
 }
 
 export const useUi = create<UiState>()(
@@ -45,11 +49,15 @@ export const useUi = create<UiState>()(
       sidebarCollapsed: false,
       setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
       noteZoom: 1,
-      setNoteZoom: (noteZoom) => set({ noteZoom: Math.round(Math.min(NOTE_ZOOM.max, Math.max(NOTE_ZOOM.min, noteZoom)) * 100) / 100 })
+      setNoteZoom: (noteZoom) => set({ noteZoom: Math.round(Math.min(NOTE_ZOOM.max, Math.max(NOTE_ZOOM.min, noteZoom)) * 100) / 100 }),
+      mascotOpen: false,
+      setMascotOpen: (mascotOpen) => set({ mascotOpen }),
+      mascotThreadId: null,
+      setMascotThreadId: (mascotThreadId) => set({ mascotThreadId })
     }),
     {
       name: 'unios-ui',
-      partialize: (s) => ({ semesterId: s.semesterId, expanded: s.expanded, sidebarWidth: s.sidebarWidth, sidebarCollapsed: s.sidebarCollapsed, chatOpen: s.chatOpen, noteZoom: s.noteZoom })
+      partialize: (s) => ({ semesterId: s.semesterId, expanded: s.expanded, sidebarWidth: s.sidebarWidth, sidebarCollapsed: s.sidebarCollapsed, chatOpen: s.chatOpen, noteZoom: s.noteZoom, mascotThreadId: s.mascotThreadId })
     }
   )
 )
