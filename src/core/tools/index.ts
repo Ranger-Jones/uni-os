@@ -1,4 +1,7 @@
 import { z } from 'zod'
+import { eq } from 'drizzle-orm'
+import type { Db } from '../db/open'
+import { courses } from '../db/schema'
 import { AppError } from '../errors'
 import type { ToolCtx, ToolDef } from './define'
 import { cardTools } from './cards'
@@ -37,6 +40,11 @@ export async function runTool(ctx: ToolCtx, name: string, rawInput: unknown): Pr
   if (!def) return { ok: false, error: `Unknown tool: ${name}` }
   const parsed = def.input.safeParse(rawInput ?? {})
   if (!parsed.success) return { ok: false, error: parsed.error.issues.map((i) => `${i.path.join('.') || 'input'}: ${i.message}`).join('; ') }
+  // A wrong course id (made up, or several joined with commas) would otherwise just match nothing,
+  // and the model would report "nothing found" as a fact.
+  const courseId = (parsed.data as { course_id?: unknown } | null)?.course_id
+  if (typeof courseId === 'string' && courseId && !courseExists(ctx.db, courseId))
+    return { ok: false, error: `Course not found: "${courseId}". Pass exactly one course id from list_courses, or omit course_id to cover all courses.` }
   try {
     return { ok: true, result: await def.run(ctx, parsed.data) }
   } catch (err) {
@@ -44,3 +52,5 @@ export async function runTool(ctx: ToolCtx, name: string, rawInput: unknown): Pr
     return { ok: false, error: err instanceof Error ? err.message : String(err) }
   }
 }
+
+const courseExists = (db: Db, id: string): boolean => !!db.select({ id: courses.id }).from(courses).where(eq(courses.id, id)).get()

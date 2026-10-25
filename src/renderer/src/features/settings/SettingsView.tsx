@@ -183,6 +183,7 @@ function AiSettings({ settings, onChange }: { settings: Settings; onChange: (p: 
         <Select className="w-36" value={settings.defaultProvider} onChange={(e) => onChange({ defaultProvider: e.target.value as Settings['defaultProvider'] })}>
           <option value="anthropic">Claude</option>
           <option value="openai">OpenAI</option>
+          <option value="local">Local model</option>
         </Select>
       </Row>
       <Row label="Claude model">
@@ -201,6 +202,68 @@ function AiSettings({ settings, onChange }: { settings: Settings; onChange: (p: 
             <option key={m} value={m} />
           ))}
         </datalist>
+      </Row>
+      <LocalModelSettings settings={settings} onChange={onChange} />
+    </>
+  )
+}
+
+/** A model on this computer (or in the local network) behind an OpenAI-compatible server such as Ollama. */
+function LocalModelSettings({ settings, onChange }: { settings: Settings; onChange: (p: Partial<Settings>) => void }) {
+  const [url, setUrl] = useState(settings.localBaseUrl)
+  const [check, setCheck] = useState<{ state: 'idle' | 'checking' | 'ok' | 'error'; models: string[]; message?: string }>({ state: 'idle', models: [] })
+  const test = async (baseUrl = url) => {
+    setCheck({ state: 'checking', models: [] })
+    try {
+      const models = await api.ai.localModels({ baseUrl })
+      setCheck({ state: 'ok', models, message: models.length ? undefined : 'Connected, but no models are installed yet (ollama pull …).' })
+    } catch (e) {
+      setCheck({ state: 'error', models: [], message: e instanceof Error ? e.message : String(e) })
+    }
+  }
+  const saveUrl = () => {
+    const v = url.trim()
+    if (v && v !== settings.localBaseUrl) onChange({ localBaseUrl: v })
+  }
+  const options = [...new Set([...(settings.localModel ? [settings.localModel] : []), ...check.models])]
+  return (
+    <>
+      <Row label="Local model server" hint="Ollama (http://localhost:11434/v1), LM Studio (http://localhost:1234/v1) or another OpenAI-compatible server. Runs on your computer, no API key.">
+        <Input className="w-60" value={url} onChange={(e) => setUrl(e.target.value)} onBlur={saveUrl} />
+        <Button
+          size="sm"
+          disabled={check.state === 'checking'}
+          onClick={() => {
+            saveUrl()
+            void test()
+          }}
+        >
+          {check.state === 'checking' ? 'Checking…' : 'Check connection'}
+        </Button>
+      </Row>
+      <Row
+        label="Local model"
+        hint={
+          check.state === 'error' ? (
+            <span className="text-danger">{check.message}</span>
+          ) : check.state === 'ok' ? (
+            (check.message ?? `${check.models.length} model${check.models.length === 1 ? '' : 's'} found. Models need tool calling, e.g. qwen3 or gpt-oss.`)
+          ) : (
+            'Check the connection to list the installed models.'
+          )
+        }
+      >
+        <Select className="w-60" value={settings.localModel} onChange={(e) => onChange({ localModel: e.target.value })} disabled={!options.length}>
+          <option value="">{options.length ? 'Choose a model' : 'No model chosen'}</option>
+          {options.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </Select>
+      </Row>
+      <Row label="Let the local model think first" hint="Reasoning models such as qwen3 or gpt-oss can think before they answer. Sometimes better on hard questions, but several times slower.">
+        <input type="checkbox" className="h-4 w-4" checked={settings.localThinking} onChange={(e) => onChange({ localThinking: e.target.checked })} />
       </Row>
     </>
   )

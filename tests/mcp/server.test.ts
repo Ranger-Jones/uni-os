@@ -58,7 +58,7 @@ test('errors come back as tool errors, not protocol failures', async () => {
   const { client } = await connect()
   const r = await client.callTool({ name: 'get_course', arguments: { course_id: 'nope' } })
   expect(r.isError).toBe(true)
-  expect(text(r)).toBe('Course not found')
+  expect(text(r)).toMatch(/^Course not found/)
 })
 
 test('mergeClaudeDesktopConfig keeps other servers and settings', () => {

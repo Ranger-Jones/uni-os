@@ -15,7 +15,7 @@ import { useChat } from './useChat'
 
 export function useHasKey() {
   const keys = useQuery({ queryKey: ['ai', 'keys'], queryFn: () => api.ai.keyStatus() })
-  return !!(keys.data?.anthropic || keys.data?.openai)
+  return !!(keys.data?.anthropic || keys.data?.openai || keys.data?.local)
 }
 
 export function ChatView() {

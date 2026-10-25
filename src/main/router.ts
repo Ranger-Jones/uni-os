@@ -25,6 +25,7 @@ import type { ChatService } from './llm/chat'
 import type { Updater } from './updater'
 import { ANTHROPIC_MODELS } from './llm/anthropic'
 import { OPENAI_MODEL_SUGGESTIONS } from './llm/openai'
+import { listLocalModels } from '@core/llm/local'
 import { keyStatus, setKey, type Provider } from './secrets'
 import { installIntoClaudeDesktop, mcpSetupInfo } from './mcpConfig'
 import * as chats from '@core/repo/chats'
@@ -131,10 +132,11 @@ export function createRouter(ctx: AppContext, host: Host, chat: ChatService, upd
       url: ({ id }: { id: string }) => fileUrl(files.get(ctx.db, id).storedPath)
     },
     ai: {
-      keyStatus: () => keyStatus(),
+      /** Which providers can be used: API key saved, or (local) a model chosen. */
+      keyStatus: () => ({ ...keyStatus(), local: !!ctx.settings.localModel }),
       setKey: ({ provider, key }: { provider: Provider; key: string | null }) => {
         setKey(provider, key)
-        return keyStatus()
+        return { ...keyStatus(), local: !!ctx.settings.localModel }
       },
       mcpInfo: () => mcpSetupInfo(),
       installMcp: () => {
@@ -142,6 +144,8 @@ export function createRouter(ctx: AppContext, host: Host, chat: ChatService, upd
         return mcpSetupInfo()
       },
       models: () => ({ anthropic: ANTHROPIC_MODELS, openai: OPENAI_MODEL_SUGGESTIONS }),
+      /** Models installed on a local OpenAI-compatible server (defaults to the configured one). */
+      localModels: ({ baseUrl }: { baseUrl?: string } = {}) => listLocalModels(baseUrl ?? ctx.settings.localBaseUrl),
       threads: () => chats.listThreads(ctx.db),
       history: ({ threadId }: { threadId: string }) => chat.history(threadId),
       send: (input: Parameters<ChatService['send']>[0]) => chat.send(input),

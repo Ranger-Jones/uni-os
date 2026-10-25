@@ -35,7 +35,7 @@ test('unknown tool and invalid input return readable errors', async () => {
 
 test('unknown ids are reported, not thrown', async () => {
   const r = await runTool(ctx, 'get_course', { course_id: 'missing' })
-  expect(r).toEqual({ ok: false, error: 'Course not found' })
+  expect(r).toEqual({ ok: false, error: expect.stringMatching(/^Course not found/) })
 })
 
 test('create_assignment then list_assignments shows it', async () => {
@@ -92,4 +92,22 @@ test('append_to_page keeps content written between read and write (single transa
   await runTool(ctx, 'append_to_page', { page_id: p.id, markdown: 'second' })
   await runTool(ctx, 'append_to_page', { page_id: p.id, markdown: 'third' })
   expect(pages.get(db, p.id).contentText).toBe('first\nsecond\nthird')
+})
+
+test('an unknown course_id is reported instead of silently matching nothing', async () => {
+  const { db } = memDb()
+  const c = seedCourse(db, 'VR')
+  const ctx = { db, filesDir: '/tmp/none', now: () => new Date('2026-10-25T10:00:00Z') }
+  const joined = `${c.id},other-id`
+  for (const [name, input] of [
+    ['list_assignments', { course_id: joined }],
+    ['list_events', { from: '2026-10-25', to: '2026-11-08', course_id: joined }],
+    ['search', { query: 'x', course_id: 'nope' }]
+  ] as const) {
+    const r = await runTool(ctx, name, input)
+    expect(r.ok, name).toBe(false)
+    expect(!r.ok && r.error, name).toMatch(/course not found.*omit course_id/i)
+  }
+  expect((await runTool(ctx, 'list_assignments', { course_id: c.id })).ok).toBe(true)
+  expect((await runTool(ctx, 'list_assignments', {})).ok).toBe(true)
 })

@@ -1,3 +1,4 @@
+import type { LlmProvider } from '@core/settings'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DisplayMessage } from '@core/llm/display'
@@ -54,7 +55,7 @@ export function useChat(threadId: string | null, onThreadCreated?: (id: string) 
   }, [qc])
 
   const send = useCallback(
-    async (text: string, opts: { courseId?: string | null; provider?: 'anthropic' | 'openai'; model?: string } = {}) => {
+    async (text: string, opts: { courseId?: string | null; provider?: LlmProvider; model?: string } = {}) => {
       setError(null)
       setNotice(null)
       try {

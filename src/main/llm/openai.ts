@@ -14,8 +14,20 @@ export function friendlyOpenAIError(err: unknown): Error {
   return err instanceof Error ? err : new Error(String(err))
 }
 
-export function openaiAdapter(apiKey: string, model: string): LlmAdapter<M> {
-  const client = new OpenAI({ apiKey })
+/** Errors of a local OpenAI-compatible server (Ollama, LM Studio) in words that point at the local setup. */
+function friendlyLocalError(err: unknown, baseURL: string, model: string): Error {
+  if (err instanceof OpenAI.APIConnectionError) return new Error(`Could not reach the local model server at ${baseURL}. Is Ollama (or LM Studio) running?`)
+  if (err instanceof OpenAI.NotFoundError) return new Error(`The model "${model}" is not installed on the local server. With Ollama: ollama pull ${model}`)
+  if (err instanceof OpenAI.APIError) return new Error(`Local model server error ${err.status ?? ''}: ${err.message}`)
+  return err instanceof Error ? err : new Error(String(err))
+}
+
+export function openaiAdapter(apiKey: string, model: string, opts: { baseURL?: string; local?: boolean; thinking?: boolean } = {}): LlmAdapter<M> {
+  // Local servers can take a while to load a model into memory on the first request.
+  const client = new OpenAI({ apiKey, ...(opts.baseURL ? { baseURL: opts.baseURL } : {}), ...(opts.local ? { timeout: 10 * 60_000, maxRetries: 0 } : {}) })
+  const friendly = (err: unknown) => (opts.local ? friendlyLocalError(err, opts.baseURL ?? '', model) : friendlyOpenAIError(err))
+  // Ollama turns hidden "thinking" of reasoning models off with reasoning_effort none; servers that do not know it get it dropped.
+  let noThinking = opts.local === true && opts.thinking === false
   return {
     user: (text) => ({ role: 'user', content: text }),
     danglingToolCalls: (history) => {
@@ -29,15 +41,25 @@ export function openaiAdapter(apiKey: string, model: string): LlmAdapter<M> {
       let finish: string | null = null
       const calls: { id: string; name: string; args: string }[] = []
       try {
-        const stream = await client.chat.completions.create(
-          {
-            model,
-            stream: true,
-            messages: [{ role: 'system', content: system }, ...history],
-            tools: tools.map((t) => ({ type: 'function' as const, function: { name: t.name, description: t.description, parameters: t.inputSchema } }))
-          },
-          { signal }
-        )
+        const request = () =>
+          client.chat.completions.create(
+            {
+              model,
+              stream: true,
+              messages: [{ role: 'system', content: system }, ...history],
+              tools: tools.map((t) => ({ type: 'function' as const, function: { name: t.name, description: t.description, parameters: t.inputSchema } })),
+              ...(noThinking ? { reasoning_effort: 'none' as never } : {})
+            },
+            { signal }
+          )
+        let stream: Awaited<ReturnType<typeof request>>
+        try {
+          stream = await request()
+        } catch (err) {
+          if (!(noThinking && err instanceof OpenAI.BadRequestError)) throw err
+          noThinking = false
+          stream = await request()
+        }
         for await (const chunk of stream) {
           const choice = chunk.choices[0]
           if (!choice) continue
@@ -47,7 +69,8 @@ export function openaiAdapter(apiKey: string, model: string): LlmAdapter<M> {
             onText(d.content)
           }
           for (const tc of d?.tool_calls ?? []) {
-            const slot = (calls[tc.index] ??= { id: '', name: '', args: '' })
+            // Some local servers omit the index (one complete call per chunk) or the id.
+            const slot = (calls[tc.index ?? calls.length] ??= { id: '', name: '', args: '' })
             if (tc.id) slot.id = tc.id
             if (tc.function?.name) slot.name += tc.function.name
             if (tc.function?.arguments) slot.args += tc.function.arguments
@@ -55,8 +78,11 @@ export function openaiAdapter(apiKey: string, model: string): LlmAdapter<M> {
           if (choice.finish_reason) finish = choice.finish_reason
         }
       } catch (err) {
-        throw friendlyOpenAIError(err)
+        throw friendly(err)
       }
+      calls.forEach((c, i) => {
+        if (c && !c.id) c.id = `call_${Date.now().toString(36)}_${i}`
+      })
       const toolCalls = calls.filter(Boolean).map((c) => {
         let input: unknown = c.args
         try {

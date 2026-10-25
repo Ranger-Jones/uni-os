@@ -1,4 +1,5 @@
 // Normalizes provider-native transcripts into what the chat UI renders.
+import type { LlmProvider } from '../settings'
 
 export type DisplayPart =
   | { type: 'text'; text: string }
@@ -16,7 +17,7 @@ const statusOf = (content: string, isError: boolean): 'ok' | 'error' | 'declined
 
 const textOf = (c: unknown): string => (typeof c === 'string' ? c : Array.isArray(c) ? c.map((b: Json) => (b.type === 'text' ? b.text : '')).join('') : '')
 
-export function toDisplay(provider: 'anthropic' | 'openai', native: unknown[]): DisplayMessage[] {
+export function toDisplay(provider: LlmProvider, native: unknown[]): DisplayMessage[] {
   const out: DisplayMessage[] = []
   const tools = new Map<string, Extract<DisplayPart, { type: 'tool' }>>()
   const assistant = (): DisplayMessage => {

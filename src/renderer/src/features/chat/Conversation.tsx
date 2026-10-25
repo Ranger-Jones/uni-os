@@ -145,7 +145,7 @@ export function Conversation({
       <div className={cn('border-t border-line py-3', compact ? 'px-3' : 'px-8')}>
         {!hasKey ? (
           <p className="mx-auto max-w-2xl text-center text-[13px] text-muted">
-            Add an Anthropic or OpenAI API key in{' '}
+            Add an Anthropic or OpenAI API key, or choose a local model, in{' '}
             <Link to="/settings" className="text-accent underline">
               Settings
             </Link>{' '}

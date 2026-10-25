@@ -1,17 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
 import { Select } from '../../components/ui/Input'
 import { api } from '../../lib/api'
+import { modelFor, type LlmProvider } from '@core/settings'
 import { useActiveSemester, useCourses, useSettings } from '../../lib/queries'
 
 export interface NewChatOptions {
-  provider: 'anthropic' | 'openai'
+  provider: LlmProvider
   model: string
   courseId: string | null
 }
 
 export function useNewChatDefaults(): NewChatOptions | null {
   const s = useSettings().data
-  return s ? { provider: s.defaultProvider, model: s.defaultProvider === 'anthropic' ? s.anthropicModel : s.openaiModel, courseId: null } : null
+  return s ? { provider: s.defaultProvider, model: modelFor(s, s.defaultProvider), courseId: null } : null
 }
 
 /** Pickers shown before the first message of a new chat. */
@@ -23,7 +24,8 @@ export function NewChatPickers({ value, onChange }: { value: NewChatOptions; onC
   const courses = useCourses({ semesterId: semester?.id })
   const options = [
     ...(keys.data?.anthropic ? (models.data?.anthropic ?? []).map((m) => ({ provider: 'anthropic' as const, id: m.id, label: m.label })) : []),
-    ...(keys.data?.openai ? [{ provider: 'openai' as const, id: settings?.openaiModel ?? 'gpt-5', label: `OpenAI ${settings?.openaiModel ?? ''}` }] : [])
+    ...(keys.data?.openai ? [{ provider: 'openai' as const, id: settings?.openaiModel ?? 'gpt-5', label: `OpenAI ${settings?.openaiModel ?? ''}` }] : []),
+    ...(keys.data?.local && settings?.localModel ? [{ provider: 'local' as const, id: settings.localModel, label: `Local · ${settings.localModel}` }] : [])
   ]
   return (
     <div className="flex flex-wrap items-center gap-2">

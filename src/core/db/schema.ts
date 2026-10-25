@@ -140,7 +140,7 @@ export const chatThreads = sqliteTable('chat_threads', {
   id: id(),
   title: text('title').notNull(),
   courseId: text('course_id'),
-  provider: text('provider', { enum: ['anthropic', 'openai'] }).notNull(),
+  provider: text('provider', { enum: ['anthropic', 'openai', 'local'] }).notNull(),
   model: text('model').notNull(),
   ...timestamps
 })

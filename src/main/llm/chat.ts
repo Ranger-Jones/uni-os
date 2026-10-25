@@ -14,6 +14,8 @@ import { buildMaterial, generateQuestions, gradeOpenAnswers } from '@core/llm/te
 import { autoGrade, type QuestionType, type Response, type TestKind } from '@core/domain/tests'
 import * as tests from '@core/repo/tests'
 import { openaiAdapter } from './openai'
+import { normalizeLocalUrl } from '@core/llm/local'
+import { modelFor, type LlmProvider } from '@core/settings'
 
 export type ChatStreamEvent = { runId: string; threadId: string } & (LoopEvent | { type: 'error'; message: string } | { type: 'approval'; id: string; name: string; input: unknown })
 
@@ -51,15 +53,19 @@ export class ChatService {
     return { thread: t, messages, live: run?.live ?? null }
   }
 
-  adapter(provider: 'anthropic' | 'openai', model: string): LlmAdapter<unknown> {
+  adapter(provider: LlmProvider, model: string): LlmAdapter<unknown> {
     if (process.env.UNIOS_FAKE_LLM === '1') return fakeAdapter() as LlmAdapter<unknown>
+    if (provider === 'local') {
+      if (!model) throw new Error('Choose a local model in Settings → Assistant to use it.')
+      return openaiAdapter('local', model, { baseURL: normalizeLocalUrl(this.ctx.settings.localBaseUrl), local: true, thinking: this.ctx.settings.localThinking }) as LlmAdapter<unknown>
+    }
     const key = getKey(provider)
     if (!key) throw new Error(`Add your ${provider === 'anthropic' ? 'Anthropic' : 'OpenAI'} API key in Settings to use the assistant.`)
     return (provider === 'anthropic' ? anthropicAdapter(key, model) : openaiAdapter(key, model)) as LlmAdapter<unknown>
   }
 
   /** Starts a run in the background and returns its id; progress arrives as chat:event messages. */
-  send(input: { threadId?: string; text: string; courseId?: string | null; provider?: 'anthropic' | 'openai'; model?: string }): { runId: string; threadId: string } {
+  send(input: { threadId?: string; text: string; courseId?: string | null; provider?: LlmProvider; model?: string }): { runId: string; threadId: string } {
     const db = this.ctx.db
     const s = this.ctx.settings
     const thread = input.threadId
@@ -68,7 +74,7 @@ export class ChatService {
           title: input.text.replace(/\s+/g, ' ').slice(0, 60),
           courseId: input.courseId ?? null,
           provider: input.provider ?? s.defaultProvider,
-          model: input.model ?? ((input.provider ?? s.defaultProvider) === 'anthropic' ? s.anthropicModel : s.openaiModel)
+          model: input.model ?? modelFor(s, input.provider ?? s.defaultProvider)
         })
     if ([...this.runs.values()].some((r) => r.threadId === thread.id)) throw new Error('The assistant is still answering in this chat.')
     const adapter = this.adapter(thread.provider, thread.model)
@@ -103,7 +109,7 @@ export class ChatService {
 
   private defaultAdapter() {
     const s = this.ctx.settings
-    return this.adapter(s.defaultProvider, s.defaultProvider === 'anthropic' ? s.anthropicModel : s.openaiModel)
+    return this.adapter(s.defaultProvider, modelFor(s, s.defaultProvider))
   }
 
   generateCards(pageId: string) {
