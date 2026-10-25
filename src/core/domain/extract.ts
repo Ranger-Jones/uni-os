@@ -1,5 +1,6 @@
 // Text extraction for imported files. Failures never throw: the file is kept, just without text.
 import { extractText as pdfText, getDocumentProxy } from 'unpdf'
+import { joinPages } from './pageText'
 
 export interface Extracted {
   text: string | null
@@ -15,9 +16,10 @@ export async function extractText(data: Uint8Array, mime: string): Promise<Extra
   try {
     if (mime === 'application/pdf') {
       const pdf = await getDocumentProxy(new Uint8Array(data))
-      const { totalPages, text } = await pdfText(pdf, { mergePages: true })
-      const clean = text.replace(/[ \t]+\n/g, '\n').trim()
-      return { text: clean || null, pageCount: totalPages }
+      const { totalPages, text } = await pdfText(pdf, { mergePages: false })
+      const pages = text.map((t) => t.replace(/[ \t]+\n/g, '\n').trim())
+      // Keep page boundaries ("[Page N]") so tools can point to the slide; no text at all means a scanned PDF.
+      return { text: pages.some(Boolean) ? joinPages(pages) : null, pageCount: totalPages }
     }
     if (TEXT_TYPES.has(mime)) return { text: new TextDecoder().decode(data), pageCount: null }
   } catch {

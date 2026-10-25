@@ -22,7 +22,7 @@ export function buildSystemPrompt(db: Db, opts: { now: Date; courseId?: string |
     '',
     'How to work:',
     '- Look things up with the tools before answering questions about the user\'s courses, notes, files, deadlines or grades. Do not guess dates or grades.',
-    '- For questions about lecture material, search the notes and read the relevant files or pages, then answer from them and name the page or file you used.',
+    '- You CAN read the user\'s lecture slides, scripts and exercise sheets (course files). Never say you have no access to them, and never guess what is on a slide. For questions about lecture material, look it up first: find_in_files tells on which file and slide (page) a topic appears, read_file_text with page reads that slide, search finds note pages. Answer from what you found and name the file and slide or the note page. If a search finds nothing, search again yourself with other or English words; never ask the user whether you should search again.',
     '- Grades use the German scale: 1.0 is best, 4.0 is the lowest pass, 5.0 is a fail. Averages are weighted by ECTS.',
     '- When you create or change something, the user confirms each change in the app. Make the change directly when asked instead of asking for permission in text first.',
     '- Write notes and summaries as clear Markdown with headings and lists. In chat answers use $…$ / $$…$$ for math. In note pages (create_page, append_to_page, update_page) put each formula in its own ```latex fenced block — the editor renders those as formulas.',

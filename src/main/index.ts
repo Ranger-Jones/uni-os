@@ -4,7 +4,7 @@ import { defaultUserDataDir } from '@core/settings'
 import { isSafeExternalUrl } from '@core/url'
 import { AppContext } from './context'
 import { registerDropImport, registerIpc } from './ipc'
-import { importFiles } from '@core/repo/files'
+import { importFiles, addPageMarks } from '@core/repo/files'
 import { handleFileScheme, registerFileScheme } from './protocol'
 import { scheduleBackups } from './backup'
 import { ChatService } from './llm/chat'
@@ -78,6 +78,12 @@ app.whenReady().then(() => {
   registerIpc(router)
   registerDropImport((courseId, paths) => importFiles(ctx.db, ctx.filesDir, courseId, paths))
   mainWindow = createWindow()
+  // PDFs imported before 0.5.1 lost their page boundaries; read them once more in the background.
+  setTimeout(() => {
+    void addPageMarks(ctx.db, ctx.filesDir)
+      .then((n) => n && mainWindow?.webContents.send('db:changed'))
+      .catch((err: unknown) => console.error('Adding page marks to PDFs failed', err))
+  }, 3000)
   watchExternalChanges(ctx, () => mainWindow)
   scheduleBackups(ctx)
   updater.start()

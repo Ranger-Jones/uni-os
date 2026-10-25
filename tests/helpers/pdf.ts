@@ -10,6 +10,21 @@ export function makePdf(text: string): Uint8Array {
   ])
 }
 
+/** A PDF with one page per entry of `pages`, each showing its text (like a slide deck). */
+export function makeDeckPdf(pages: string[]): Uint8Array {
+  const n = pages.length
+  const kids = pages.map((_, i) => `${3 + i * 2} 0 R`).join(' ')
+  const font = 3 + n * 2
+  const objs = ['<< /Type /Catalog /Pages 2 0 R >>', `<< /Type /Pages /Kids [${kids}] /Count ${n} >>`]
+  pages.forEach((text, i) => {
+    const stream = `BT /F1 18 Tf 72 720 Td (${text.replace(/[()\\]/g, (c) => '\\' + c)}) Tj ET`
+    objs.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents ${4 + i * 2} 0 R /Resources << /Font << /F1 ${font} 0 R >> >> >>`)
+    objs.push(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`)
+  })
+  objs.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>')
+  return pdfFromObjects(objs)
+}
+
 /**
  * A 600×400 pt "slide" with a title and a red 2×2 px picture drawn at x 300–500, y 100–300 (PDF coordinates,
  * origin bottom-left) — i.e. left 0.5, right 0.833, top 0.25, bottom 0.75 as displayed.

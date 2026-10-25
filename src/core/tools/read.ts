@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { findInText } from '../domain/pageText'
 import { requiredAverage } from '../domain/grades'
 import { blocksToMarkdown } from '../domain/markdown'
 import { localDate } from '../util'
@@ -182,13 +183,54 @@ export const readTools = [
   }),
   defineTool({
     name: 'read_file_text',
-    description: 'Read the extracted text of a file (e.g. a PDF), 20,000 characters at a time. Use next_offset to continue.',
-    input: z.object({ file_id: id('File'), offset: z.number().int().min(0).optional() }),
+    description:
+      'Read the extracted text of a file (e.g. lecture slides as PDF). Pages are marked "[Page N]" (= slide N). Pass page (and to_page) to read specific pages, otherwise it returns 20,000 characters at a time; use next_offset to continue.',
+    input: z.object({
+      file_id: id('File'),
+      page: z.number().int().min(1).optional().describe('First page to read (1-based)'),
+      to_page: z.number().int().min(1).optional().describe('Last page to read (default: page)'),
+      offset: z.number().int().min(0).optional()
+    }),
     mutates: false,
     run: ({ db }, i) => {
       const f = files.get(db, i.file_id)
       if (!f.text) return { name: f.name, text: null, note: 'No text could be extracted from this file (scanned PDF or unsupported type).' }
-      return { name: f.name, ...files.textPage(db, f.id, { offset: i.offset, limit: 20_000 }) }
+      return { name: f.name, ...files.textPage(db, f.id, i.page ? { page: i.page, toPage: i.to_page } : { offset: i.offset, limit: 20_000 }) }
+    }
+  }),
+  defineTool({
+    name: 'find_in_files',
+    description:
+      "Query in ENGLISH (the slides are in English): translate German terms first, e.g. 'Linie im Unendlichen' → 'line infinity', 'Kreuzprodukt' → 'cross product'. Finds on which page (slide) of the user's lecture files a topic appears: searches the text of all course files (PDF slides, scripts, exercise sheets) and returns file, page number and a snippet for every page containing all words of the query. Use it whenever the user asks where/on which slide something is, or before answering questions about lecture material. The slides are usually in English: search with English terms even when the user writes German (e.g. 'line infinity' for 'Linie im Unendlichen').",
+    input: z.object({
+      query: z.string().min(2).describe('Words that must all appear on the page, e.g. "line infinity"'),
+      course_id: z.string().optional(),
+      file_id: z.string().optional().describe('Search only this file')
+    }),
+    mutates: false,
+    run: ({ db }, i) => {
+      const candidates = i.file_id ? [files.get(db, i.file_id)] : files.list(db, { courseId: i.course_id }).filter((f) => f.hasText).map((f) => files.get(db, f.id))
+      const search = (partial: boolean) =>
+        candidates.flatMap((f) =>
+          findInText(f.text ?? '', i.query, { partial }).map((h) => ({
+            file: f.name,
+            file_id: f.id,
+            course_id: f.courseId,
+            page: h.page,
+            snippet: h.snippet,
+            ...(partial ? { partial: true, words_found: h.matched } : {})
+          }))
+        )
+      let matches = search(false)
+      let note: string | undefined
+      if (!matches.length) {
+        matches = search(true).sort((a, b) => (b.words_found?.length ?? 0) - (a.words_found?.length ?? 0))
+        note = matches.length
+          ? 'Not all words appear on one page; these pages contain some of them (best first). Check them, or search again with other words.'
+          : 'Nothing found. The slides are usually in English: translate the words (e.g. "Linie im Unendlichen" → "line infinity", "Kreuzprodukt" → "cross product") or use synonyms, and call find_in_files again before you answer.'
+      }
+      const limited = matches.slice(0, 25)
+      return { matches: limited, ...(matches.length > limited.length ? { more: matches.length - limited.length } : {}), ...(note ? { note } : {}) }
     }
   })
 ]

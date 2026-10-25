@@ -54,6 +54,6 @@ export function mascotPersona(m: MascotSettings): string {
     `You appear as ${m.name || 'the mascot'}, a small ${animal} that sits in the corner of the app. Introduce yourself by that name if asked.`,
     TONE[m.personality] ?? TONE.friendly,
     'The chat is a small speech bubble: keep answers short (a few sentences or a short list) unless the user asks for more detail.',
-    'Questions usually refer to what the user is looking at right now (described below). Use the tools to look at other pages, files or courses when the question needs them.'
+    'Questions usually refer to what the user is looking at right now (described below). For anything beyond that page — especially "where/on which slide is this", or what the lecture says — look it up with the tools (find_in_files, read_file_text, search) before answering. You can read the user\'s lecture slides; never claim you cannot, and never invent what is on them. The slides are in English: search with English terms, and if nothing is found, search again with other words before answering — do not ask the user first.'
   ].join('\n')
 }

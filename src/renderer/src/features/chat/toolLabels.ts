@@ -12,6 +12,7 @@ const LABELS: Record<string, string> = {
   grade_forecast: 'Calculated forecast',
   list_files: 'Listed files',
   read_file_text: 'Read file',
+  find_in_files: 'Searched the slides',
   list_decks: 'Looked at flashcards',
   list_cards: 'Read flashcards',
   list_links: 'Listed links',

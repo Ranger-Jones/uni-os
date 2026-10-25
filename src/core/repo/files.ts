@@ -4,6 +4,7 @@ import { asc, eq } from 'drizzle-orm'
 import type { Db } from '../db/open'
 import { files } from '../db/schema'
 import { extractable, extractText, mimeFor } from '../domain/extract'
+import { hasPageMarks, splitPages } from '../domain/pageText'
 import { normalizeTags, suggestTags } from '../domain/fileTags'
 import { AppError, notFound } from '../errors'
 import { resolveInside, safeFileName } from '../paths'
@@ -93,10 +94,49 @@ export function deleteFile(db: Db, filesDir: string, id: string): void {
   rmSync(abs, { force: true })
 }
 
-export function textPage(db: Db, id: string, opts: { offset?: number; limit?: number } = {}): { text: string; total: number; nextOffset: number | null } {
+export function textPage(
+  db: Db,
+  id: string,
+  opts: { offset?: number; limit?: number; page?: number; toPage?: number } = {}
+): { text: string; total: number; nextOffset: number | null; pageCount?: number } {
   const text = get(db, id).text ?? ''
+  if (opts.page !== undefined) {
+    const pages = splitPages(text).filter((p) => p.page !== null)
+    const last = pages.length
+    const to = Math.min(last, opts.toPage ?? opts.page)
+    if (!last) throw new AppError('VALIDATION', 'This file has no pages; read it without page')
+    if (opts.page < 1 || opts.page > last || to < opts.page) throw new AppError('VALIDATION', `page must be between 1 and ${last}`)
+    const chosen = pages.filter((p) => p.page! >= opts.page! && p.page! <= to).map((p) => `[Page ${p.page}]\n${p.text}`).join('\n\n')
+    return { text: chosen, total: text.length, nextOffset: null, pageCount: last }
+  }
   const offset = Math.max(0, opts.offset ?? 0)
   const limit = Math.max(1, opts.limit ?? 20_000)
   const end = Math.min(text.length, offset + limit)
   return { text: text.slice(offset, end), total: text.length, nextOffset: end < text.length ? end : null }
+}
+
+/**
+ * Re-reads PDFs whose stored text has no page marks (imported by an older version), so tools can name the
+ * page of a match. Returns how many files were updated; unreadable or missing files are skipped.
+ */
+export async function addPageMarks(db: Db, filesDir: string): Promise<number> {
+  const rows = db.select().from(files).where(eq(files.mime, 'application/pdf')).all()
+  let updated = 0
+  for (const f of rows) {
+    if (!f.text || hasPageMarks(f.text)) continue
+    const abs = resolveInside(filesDir, f.storedPath)
+    if (!abs) continue
+    let data: Uint8Array
+    try {
+      data = readFileSync(abs)
+    } catch {
+      continue
+    }
+    const { text, pageCount } = await extractText(data, f.mime)
+    if (!text || !hasPageMarks(text)) continue
+    const row = db.update(files).set({ text, pageCount, updatedAt: nowIso() }).where(eq(files.id, f.id)).returning().get()
+    reindex(db, row)
+    updated++
+  }
+  return updated
 }
