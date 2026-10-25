@@ -3,3 +3,9 @@ allowBuilds:
   electron: true
   esbuild: true
   electron-winstaller: false
+# Release builds for macOS, Windows and Linux are made on one Mac: install the native binaries of
+# optional platform packages (e.g. @napi-rs/canvas-win32-x64-msvc) for every target, not just this machine.
+supportedArchitectures:
+  os: [current, darwin, win32, linux]
+  cpu: [current, arm64, x64]
+  libc: [current, glibc]

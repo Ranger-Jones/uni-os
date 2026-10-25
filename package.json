@@ -1,7 +1,7 @@
 {
   "name": "unios",
   "productName": "UniOS",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Notion-inspired study organizer with LLM integration",
   "main": "out/main/index.js",
   "author": {
@@ -42,6 +42,12 @@
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.33",
     "zod": "^4.6.7"
+  },
+  "optionalDependencies": {
+    "@napi-rs/canvas-darwin-arm64": "1.0.10",
+    "@napi-rs/canvas-darwin-x64": "1.0.10",
+    "@napi-rs/canvas-linux-x64-gnu": "1.0.10",
+    "@napi-rs/canvas-win32-x64-msvc": "1.0.10"
   },
   "devDependencies": {
     "@blocknote/mantine": "^0.56.0",

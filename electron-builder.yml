@@ -7,6 +7,8 @@ directories:
 files:
   - out/**
   - package.json
+  # @napi-rs/canvas ships one native package per platform; each platform section below adds back its own.
+  # (${platform} would be the build machine's platform, so the patterns are spelled out per target.)
 asarUnpack:
   - "**/*.node"
 npmRebuild: false
@@ -16,6 +18,9 @@ publish:
   owner: Ranger-Jones
   repo: uni-os
 mac:
+  # @napi-rs/canvas: every build collects all platform binaries (optionalDependencies); drop the foreign ones.
+  files:
+    - "!node_modules/@napi-rs/canvas-{win32,linux}-*/**"
   # zip name used by the in-app updater; the dmg section sets its own name
   artifactName: UniOS-${version}-${arch}-mac.${ext}
   category: public.app-category.education
@@ -36,6 +41,9 @@ dmg:
   title: UniOS
   artifactName: UniOS-${version}-${arch}.dmg
 win:
+  files:
+    - "!node_modules/@napi-rs/canvas-{darwin,linux}-*/**"
+    - "!node_modules/@napi-rs/canvas-win32-arm64-*/**"
   icon: build/icon.png
   target:
     - target: nsis
@@ -47,6 +55,9 @@ nsis:
   createDesktopShortcut: true
   artifactName: UniOS-Setup-${version}-${arch}.${ext}
 linux:
+  files:
+    - "!node_modules/@napi-rs/canvas-{darwin,win32}-*/**"
+    - "!node_modules/@napi-rs/canvas-linux-arm64-*/**"
   icon: build/icon.png
   category: Education
   synopsis: Organize your studies — courses, notes, grades and an AI assistant
