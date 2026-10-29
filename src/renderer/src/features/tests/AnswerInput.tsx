@@ -82,7 +82,7 @@ export function AnswerInput({ q, value, onChange, reveal }: { q: Question; value
       <Input
         className="max-w-56 font-mono"
         inputMode="decimal"
-        placeholder="Your result, e.g. 0.72"
+        placeholder="Your result, e.g. 0.72 or 3/20"
         disabled={reveal}
         value={typeof value === 'string' ? value : ''}
         onChange={(e) => onChange(e.target.value)}

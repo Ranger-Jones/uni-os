@@ -72,8 +72,14 @@ export function normalizeQuestion(input: QuestionInput): NormalizedQuestion {
   }
 }
 
-/** Parse "0,5", "0.5", "-1.2e-3"; null for anything else. */
+/** Parse "0,5", "0.5", "-1.2e-3" or a fraction like "3/20"; null for anything else. */
 export function parseNumber(text: string): number | null {
+  const parts = text.split('/')
+  if (parts.length === 2) {
+    const [num, den] = parts.map(parseNumber)
+    return num !== null && den !== null && den !== 0 ? num / den : null
+  }
+  if (parts.length > 2) return null
   const t = text.trim().replace(/\s/g, '').replace(',', '.')
   if (!t || !/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(t)) return null
   const n = Number(t)

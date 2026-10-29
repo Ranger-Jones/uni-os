@@ -29,6 +29,15 @@ test('numbers are parsed with comma or dot decimals', () => {
   expect(parseNumber('')).toBeNull()
 })
 
+test('fractions are accepted as numbers', () => {
+  expect(parseNumber('3/20')).toBe(0.15)
+  expect(parseNumber(' -1 / 4 ')).toBe(-0.25)
+  expect(parseNumber('1,5/3')).toBe(0.5)
+  expect(parseNumber('1/0')).toBeNull()
+  expect(parseNumber('1/2/3')).toBeNull()
+  expect(autoGrade(q({ type: 'number', solution: { value: 0.15, tolerance: 0.001 } }), '3/20')).toEqual({ points: 2, correct: true })
+})
+
 test('auto grading: single, truefalse, number with tolerance', () => {
   const single = q({ type: 'single', options: ['a', 'b', 'c'], solution: { correct: [1] } })
   expect(autoGrade(single, 1)).toEqual({ points: 2, correct: true })
