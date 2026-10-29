@@ -1,5 +1,5 @@
 // End-to-end encryption for sync: everything leaves the device as AES-256-GCM ciphertext.
-import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto'
+import { createCipheriv, createDecipheriv, randomBytes, scrypt, scryptSync } from 'node:crypto'
 
 const CHECK = 'unios-sync-check-v1'
 
@@ -45,4 +45,11 @@ export function verifyCheck(key: Buffer, check: string): boolean {
   } catch {
     return false
   }
+}
+
+/** Same as deriveKey, without blocking the event loop for the second it takes. */
+export function deriveKeyAsync(password: string, salt: string): Promise<Buffer> {
+  return new Promise((resolve, reject) =>
+    scrypt(password.normalize('NFC'), Buffer.from(salt, 'base64'), 32, { N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 }, (err, key) => (err ? reject(err) : resolve(key)))
+  )
 }

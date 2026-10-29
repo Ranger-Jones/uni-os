@@ -253,3 +253,38 @@ test('tampering in the cloud is rejected: forged deletes, swapped payloads, chan
   await sync(c2, remote)
   expect(existsSync(join(c2.filesDir, files.get(c2.db, f1.id).storedPath))).toBe(false)
 }, 30_000)
+
+test('replaying an older (validly encrypted) version from the cloud does not roll a row back', async () => {
+  const remote = new FakeRemote()
+  const a = device('A')
+  const b = device('B')
+  const { c } = seed(a.db)
+  const as = assignments.create(a.db, { courseId: c.id, title: 'v1' })
+  await sync(a, remote)
+  await sync(b, remote)
+  const old = { ...remote.rows.find((r) => r.id === as.id)! }
+  assignments.remove(a.db, as.id)
+  await sync(a, remote)
+  await sync(b, remote)
+  expect(assignments.list(b.db, {})).toHaveLength(0)
+  // the attacker puts the old row back
+  remote.rows = remote.rows.filter((r) => r.id !== as.id)
+  remote.rows.push({ ...old, seq: Math.max(...remote.rows.map((r) => r.seq)) + 1 })
+  await sync(b, remote)
+  expect(assignments.list(b.db, {})).toHaveLength(0)
+}, 30_000)
+
+test('a device whose clock runs late still gets its edits through', async () => {
+  const remote = new FakeRemote()
+  const a = device('A')
+  const b = device('B')
+  const { c } = seed(a.db)
+  const as = assignments.create(a.db, { courseId: c.id, title: 'v1' })
+  await sync(a, remote)
+  await sync(b, remote)
+  // B edits, but its clock is an hour behind
+  b.db.update(assignmentsTable).set({ title: 'edited on B', updatedAt: new Date(Date.now() - 3_600_000).toISOString() }).where(eq(assignmentsTable.id, as.id)).run()
+  await sync(b, remote)
+  await sync(a, remote)
+  expect(assignments.list(a.db, {})[0].title).toBe('edited on B')
+}, 30_000)

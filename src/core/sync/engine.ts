@@ -220,8 +220,9 @@ export async function syncOnce(o: SyncOptions): Promise<SyncResult> {
   const incoming = [...latest.values()].filter((r) => {
     if (r.device_id === deviceId || !isSyncTable(r.entity)) return false
     if (getState(db, `rejected\u0000${r.entity}\u0000${r.id}`) === `${r.seq}`) return false // seen and rejected before
+    // Versions only move forward: anything not newer than what we last saw (including replayed old ciphertexts) is ignored.
     const k = knownOf(db, r.entity, r.id)
-    return !(k && k.updated_at >= r.updated_at && k.deleted === (r.deleted ? 1 : 0))
+    return !(k && r.updated_at <= k.updated_at)
   })
   const decoded: { r: RemoteRow; row: Row | null }[] = []
   for (const r of incoming) {
@@ -321,7 +322,10 @@ export async function syncOnce(o: SyncOptions): Promise<SyncResult> {
       if (await uploadBlob(o, `file/${row.id}`, String(row.stored_path))) result.blobsUp++
     } else if (row && out.entity === 'files') setBlobState(db, `file/${row.id}`, 'skipped')
     if (row && out.entity === 'pages') for (const rel of assetPaths(String(row.content ?? ''))) if (await uploadBlob(o, `asset/${rel}`, rel)) result.blobsUp++
-    const updatedAt = row ? stamp(row) : new Date().toISOString()
+    // The version stamp must be newer than the last version of this row we know of, even if this device's clock runs late.
+    const known = knownOf(db, out.entity, out.id)
+    const own = row ? stamp(row) : new Date().toISOString()
+    const updatedAt = known && own <= known.updated_at ? new Date(Date.parse(known.updated_at) + 1).toISOString() : own
     // Deletions carry an encrypted receipt too, so nobody with access to the cloud can forge them.
     const envelope: Envelope = row ? { deleted: false, updated_at: updatedAt, row } : { deleted: true, updated_at: updatedAt }
     const payload = encryptJson(key, envelope, rowAad(out.entity, out.id))

@@ -5,6 +5,15 @@ import { defaultMascot, type MascotSettings } from './domain/mascot'
 
 export type LlmProvider = 'anthropic' | 'openai' | 'local'
 
+export interface SyncSettings {
+  url: string
+  /** The project's public anon key (protected by row level security, safe to keep in settings). */
+  anonKey: string
+  enabled: boolean
+  /** Random id of this installation, so a device skips its own changes when pulling. */
+  deviceId: string
+}
+
 export interface Settings {
   dataDir: string
   backupDir: string | null
@@ -20,6 +29,8 @@ export interface Settings {
   localThinking: boolean
   /** The study buddy in the bottom-right corner. */
   mascot: MascotSettings
+  /** Sync through the user's own Supabase project (secrets live in the keychain, not here). */
+  sync: SyncSettings
   lastBackupAt: string | null
   /** Look for new releases on GitHub at startup and every few hours. */
   checkUpdates: boolean
@@ -38,6 +49,7 @@ export const defaultSettings = (): Settings => ({
   localModel: '',
   localThinking: false,
   mascot: defaultMascot(),
+  sync: { url: '', anonKey: '', enabled: false, deviceId: '' },
   lastBackupAt: null,
   checkUpdates: true,
   lastSeenVersion: null
@@ -66,7 +78,7 @@ export function readSettings(file: string): Settings {
   if (!existsSync(file)) return defaults
   try {
     const saved = JSON.parse(readFileSync(file, 'utf8')) as Partial<Settings>
-    return { ...defaults, ...saved, mascot: { ...defaults.mascot, ...(saved.mascot ?? {}) } }
+    return { ...defaults, ...saved, mascot: { ...defaults.mascot, ...(saved.mascot ?? {}) }, sync: { ...defaults.sync, ...(saved.sync ?? {}) } }
   } catch {
     return defaults
   }
