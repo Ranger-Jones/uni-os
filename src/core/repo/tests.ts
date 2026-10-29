@@ -278,3 +278,6 @@ export function recordPaperAttempt(db: Db, testId: string, input: z.input<typeof
 export function removeAttempt(db: Db, id: string): void {
   db.delete(testAttempts).where(eq(testAttempts.id, id)).run()
 }
+
+/** Rebuild the search entry of a test after sync wrote it (or one of its questions). */
+export const reindexById = (db: Db, testId: string): void => reindex(db, testId)

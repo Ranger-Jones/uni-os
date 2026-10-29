@@ -140,3 +140,9 @@ export async function addPageMarks(db: Db, filesDir: string): Promise<number> {
   }
   return updated
 }
+
+/** Rebuild the search entry of a row written by sync. */
+export function reindexById(db: Db, id: string): void {
+  const row = db.select().from(files).where(eq(files.id, id)).get()
+  if (row) reindex(db, row)
+}

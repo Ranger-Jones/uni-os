@@ -266,3 +266,11 @@ export function searchTitles(db: Db, q: string, opts: { exclude?: string; limit?
     .limit(opts.limit ?? 12)
     .all()
 }
+
+/** Rebuild page links and the search entry of a page from its stored row (after it was written by sync). */
+export function refreshDerived(db: Db, id: string): void {
+  const p = db.select().from(pages).where(eq(pages.id, id)).get()
+  if (!p) return
+  syncLinks(db, p.id, JSON.parse(p.content || '[]') as unknown)
+  reindex(db, p)
+}

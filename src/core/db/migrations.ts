@@ -1,4 +1,5 @@
 // Ordered SQL migrations, applied by index via PRAGMA user_version.
+import { outboxTriggers, SYNC_TABLES } from '../sync/tables'
 // Never edit a released migration — append a new one.
 export const migrations: string[] = [
   /* 1: initial schema */ `
@@ -261,5 +262,25 @@ export const migrations: string[] = [
   CREATE TRIGGER tests_delete_search AFTER DELETE ON tests BEGIN
     DELETE FROM search_fts WHERE entity_type = 'test' AND entity_id = old.id;
   END;
+  `,
+  /* 5: sync between devices — change log, last synced versions, sync state */ `
+  CREATE TABLE sync_state (key TEXT PRIMARY KEY, value TEXT);
+  CREATE TABLE sync_outbox (
+    entity TEXT NOT NULL,
+    id TEXT NOT NULL,
+    deleted INTEGER NOT NULL DEFAULT 0,
+    rev INTEGER NOT NULL DEFAULT 1,
+    PRIMARY KEY (entity, id)
+  );
+  CREATE TABLE sync_known (
+    entity TEXT NOT NULL,
+    id TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted INTEGER NOT NULL DEFAULT 0,
+    base TEXT,
+    PRIMARY KEY (entity, id)
+  );
+  CREATE TABLE sync_blobs (key TEXT PRIMARY KEY, state TEXT NOT NULL);
+  ${SYNC_TABLES.map(outboxTriggers).join('\n')}
   `
 ]

@@ -84,3 +84,9 @@ export function isOverdue(a: Pick<Assignment, 'dueAt' | 'status'>, now: string):
   const due = a.dueAt.length === 10 ? `${a.dueAt}T23:59` : a.dueAt
   return due < now
 }
+
+/** Rebuild the search entry of a row written by sync. */
+export function reindexById(db: Db, id: string): void {
+  const row = db.select().from(assignments).where(eq(assignments.id, id)).get()
+  if (row) reindex(db, row)
+}

@@ -72,3 +72,9 @@ export function update(db: Db, id: string, patch: z.input<typeof LinkPatch>): Co
 export function remove(db: Db, id: string): void {
   db.delete(courseLinks).where(eq(courseLinks.id, id)).run()
 }
+
+/** Rebuild the search entry of a row written by sync. */
+export function reindexById(db: Db, id: string): void {
+  const row = db.select().from(courseLinks).where(eq(courseLinks.id, id)).get()
+  if (row) reindex(db, row)
+}
