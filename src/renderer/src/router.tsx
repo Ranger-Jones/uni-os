@@ -31,9 +31,10 @@ export const chatRoute = createRoute({
 export const courseRoute = createRoute({
   getParentRoute: () => root,
   path: '/courses/$courseId',
-  validateSearch: (s: Record<string, unknown>): { tab?: CourseTab; test?: string } => ({
+  validateSearch: (s: Record<string, unknown>): { tab?: CourseTab; test?: string; attempt?: string } => ({
     ...(typeof s.tab === 'string' ? { tab: s.tab as CourseTab } : {}),
-    ...(typeof s.test === 'string' ? { test: s.test } : {})
+    ...(typeof s.test === 'string' ? { test: s.test } : {}),
+    ...(typeof s.attempt === 'string' ? { attempt: s.attempt } : {})
   }),
   component: CourseView
 })

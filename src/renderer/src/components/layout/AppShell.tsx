@@ -7,6 +7,7 @@ import { ChatPanel } from '../../features/chat/ChatPanel'
 import { Mascot } from '../../features/mascot/Mascot'
 import { CommandPalette } from './CommandPalette'
 import { Sidebar } from './Sidebar'
+import { SwipeNavigation } from './SwipeNavigation'
 
 export function AppShell() {
   const width = useUi((s) => s.sidebarWidth)
@@ -45,6 +46,7 @@ export function AppShell() {
 
   return (
     <div className="flex h-full">
+      <SwipeNavigation />
       {!collapsed && (
         <aside style={{ width }} className="relative flex shrink-0 flex-col border-r border-line bg-side">
           <Sidebar />

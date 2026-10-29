@@ -19,12 +19,14 @@ import { GenerateTestDialog } from './GenerateTestDialog'
 import { TakeTest } from './TakeTest'
 import { PaperResultDialog, TestDialog } from './TestDialogs'
 
-/** Course tab with quizzes and test exams. The open test lives in the URL (?test=…). */
+/** Course tab with quizzes and test exams. The open test and a reviewed result live in the URL (?test=…&attempt=…), so back/forward work. */
 export function CourseTests({ courseId }: { courseId: string }) {
-  const { test: openId } = courseRoute.useSearch()
+  const { test: openId, attempt: attemptId } = courseRoute.useSearch()
   const navigate = useNavigate()
-  const open = (test?: string) => void navigate({ to: '/courses/$courseId', params: { courseId }, search: { tab: 'tests', ...(test ? { test } : {}) } })
-  if (openId) return <TestDetail key={openId} courseId={courseId} testId={openId} onBack={() => open()} />
+  const open = (test?: string, attempt?: string) =>
+    void navigate({ to: '/courses/$courseId', params: { courseId }, search: { tab: 'tests', ...(test ? { test } : {}), ...(test && attempt ? { attempt } : {}) } })
+  if (openId)
+    return <TestDetail key={openId} courseId={courseId} testId={openId} attemptId={attemptId} onBack={() => open()} onReview={(id) => open(openId, id)} />
   return <TestList courseId={courseId} onOpen={open} />
 }
 
@@ -111,13 +113,27 @@ function TestRow({ t, onOpen }: { t: TestSummary; onOpen: () => void }) {
   )
 }
 
-type View = { kind: 'detail' } | { kind: 'run'; questionIds: string[] | null } | { kind: 'result'; attempt: Attempt }
+type View = { kind: 'detail' } | { kind: 'run'; questionIds: string[] | null }
 
-function TestDetail({ courseId, testId, onBack }: { courseId: string; testId: string; onBack: () => void }) {
+function TestDetail({
+  courseId,
+  testId,
+  attemptId,
+  onBack,
+  onReview
+}: {
+  courseId: string
+  testId: string
+  attemptId?: string
+  onBack: () => void
+  onReview: (attemptId: string | undefined) => void
+}) {
   const test = useQuery({ queryKey: ['test', testId], queryFn: () => api.tests.get({ id: testId }) })
   const attempts = useQuery({ queryKey: ['test', testId, 'attempts'], queryFn: () => api.tests.attempts({ testId }) })
   const files = useQuery({ queryKey: ['files', courseId], queryFn: () => api.files.list({ courseId }) })
   const [view, setView] = useState<View>({ kind: 'detail' })
+  // the attempt just finished, until the attempts query has it
+  const [fresh, setFresh] = useState<Attempt | null>(null)
   const [edit, setEdit] = useState(false)
   const [more, setMore] = useState(false)
   const [paper, setPaper] = useState(false)
@@ -137,10 +153,17 @@ function TestDetail({ courseId, testId, onBack }: { courseId: string; testId: st
 
   if (view.kind === 'run') {
     const qs = view.questionIds ? t.questions.filter((q) => view.questionIds!.includes(q.id)) : t.questions
-    return <TakeTest test={t} questions={qs} onDone={(a) => setView({ kind: 'result', attempt: a })} onCancel={() => setView({ kind: 'detail' })} />
+    const done = (a: Attempt) => {
+      setFresh(a)
+      setView({ kind: 'detail' })
+      onReview(a.id)
+    }
+    return <TakeTest test={t} questions={qs} onDone={done} onCancel={() => setView({ kind: 'detail' })} />
   }
-  if (view.kind === 'result')
-    return <AttemptResult key={view.attempt.id} test={t} attempt={view.attempt} onBack={() => setView({ kind: 'detail' })} onRetry={(ids) => setView({ kind: 'run', questionIds: ids })} />
+  const reviewed = attemptId ? ((attempts.data ?? []).find((a) => a.id === attemptId) ?? (fresh?.id === attemptId ? fresh : undefined)) : undefined
+  if (attemptId && !reviewed && attempts.isPending) return null
+  if (reviewed)
+    return <AttemptResult key={reviewed.id} test={t} attempt={reviewed} onBack={() => onReview(undefined)} onRetry={(ids) => setView({ kind: 'run', questionIds: ids })} />
 
   return (
     <div>
@@ -236,7 +259,7 @@ function TestDetail({ courseId, testId, onBack }: { courseId: string; testId: st
                     <td className="py-2 pr-3 text-right text-muted tabular-nums">{t.kind === 'exam' && pct !== null ? gradeEstimate(pct).toFixed(1) : ''}</td>
                     <td className="w-20 py-2 text-right whitespace-nowrap">
                       {a.mode === 'interactive' && (
-                        <button onClick={() => setView({ kind: 'result', attempt: a })} className="rounded px-1.5 text-accent hover:underline">
+                        <button onClick={() => onReview(a.id)} className="rounded px-1.5 text-accent hover:underline">
                           Review
                         </button>
                       )}

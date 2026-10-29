@@ -1,3 +1,4 @@
+import { useBlocker } from '@tanstack/react-router'
 import { CircleCheck, CircleX, Clock, Loader2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -21,7 +22,19 @@ export function TakeTest({ test, questions, onDone, onCancel }: { test: TestWith
   const [startedAt] = useState(() => new Date().toISOString())
   const [responses, setResponses] = useState<Record<string, Response>>({})
   const set = (id: string, r: Response) => setResponses((m) => ({ ...m, [id]: r }))
-  const props = { test, questions, startedAt, responses, set, onDone, onCancel }
+  // Leaving mid-test (swipe back, sidebar, …) would lose the answers, so ask first.
+  const finished = useRef(false)
+  const answered = Object.keys(responses).length > 0
+  useBlocker({
+    shouldBlockFn: async () =>
+      answered && !finished.current && !(await confirm({ title: 'Leave this test?', body: 'Your answers so far will be lost.', confirmLabel: 'Leave', danger: true })),
+    enableBeforeUnload: false
+  })
+  const done = (a: Attempt) => {
+    finished.current = true
+    onDone(a)
+  }
+  const props = { test, questions, startedAt, responses, set, onDone: done, onCancel }
   return test.kind === 'quiz' ? <QuizRun {...props} /> : <ExamRun {...props} />
 }
 
