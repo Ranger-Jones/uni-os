@@ -147,6 +147,12 @@ export function SyncSettings() {
         )}
       </Step>
 
+      {!s.keychain && (signedIn || s.passwordSet) && (
+        <p className="text-[12.5px] text-muted">
+          No system keyring found, so your sign-in and sync key are stored in a file only your user account can read. For keychain protection, install and start gnome-keyring (or KeePassXC with Secret Service), then sign in again.
+        </p>
+      )}
+
       {s.passwordSet && signedIn && (
         <>
           <Row label="Sync automatically" hint="At start, a few seconds after changes and every 5 minutes.">

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { app, safeStorage } from 'electron'
+import { ensureEncryption } from './safeStore'
 
 export type Provider = 'anthropic' | 'openai'
 
@@ -15,7 +16,7 @@ function readAll(): Partial<Record<Provider, string>> {
   }
 }
 
-/** API keys are encrypted with the macOS Keychain-backed safeStorage and never leave the main process. */
+/** API keys are encrypted with safeStorage (OS keychain where available) and never leave the main process. */
 export function getKey(provider: Provider): string | null {
   const enc = readAll()[provider]
   if (!enc) return null
@@ -27,7 +28,7 @@ export function getKey(provider: Provider): string | null {
 }
 
 export function setKey(provider: Provider, key: string | null): void {
-  if (key && !safeStorage.isEncryptionAvailable()) throw new Error('Secure storage is not available on this system')
+  if (key) ensureEncryption()
   const all = readAll()
   if (key) all[provider] = safeStorage.encryptString(key.trim()).toString('base64')
   else delete all[provider]

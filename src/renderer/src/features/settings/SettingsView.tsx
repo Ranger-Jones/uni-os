@@ -164,7 +164,7 @@ function KeyRow({ provider, label, hint, saved }: { provider: 'anthropic' | 'ope
   const [value, setValue] = useState('')
   const save = useApiMutation((key: string | null) => api.ai.setKey({ provider, key }), { success: 'API key saved' })
   return (
-    <Row label={label} hint={saved ? 'Saved in your macOS keychain.' : hint}>
+    <Row label={label} hint={saved ? 'Saved encrypted on this device.' : hint}>
       {saved ? (
         <Button size="sm" variant="ghost" onClick={() => save.mutate(null)}>
           Remove key

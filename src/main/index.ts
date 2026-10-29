@@ -8,6 +8,7 @@ import { importFiles, addPageMarks } from '@core/repo/files'
 import { handleFileScheme, registerFileScheme } from './protocol'
 import { scheduleBackups } from './backup'
 import { SyncService } from './sync/service'
+import { linuxPasswordStore } from '@core/sync/secretStore'
 import { ChatService } from './llm/chat'
 import { createRouter } from './router'
 import { Updater } from './updater'
@@ -16,6 +17,10 @@ import { watchExternalChanges } from './watcher'
 app.setName('UniOS')
 app.setPath('userData', defaultUserDataDir())
 registerFileScheme()
+if (process.platform === 'linux') {
+  const store = linuxPasswordStore(process.env, process.argv)
+  if (store) app.commandLine.appendSwitch('password-store', store)
+}
 
 let mainWindow: BrowserWindow | null = null
 const ctx = new AppContext(join(app.getPath('userData'), 'settings.json'))

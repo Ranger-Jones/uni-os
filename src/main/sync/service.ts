@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { app, safeStorage } from 'electron'
+import { ensureEncryption, inKeychain } from '../safeStore'
 import { deriveKeyAsync, makeCheck, newSalt, verifyCheck } from '@core/sync/crypto'
 import { getState, markAllDirty, pendingCount, resetSyncState, setState, syncOnce, type SyncResult } from '@core/sync/engine'
 import { authErrorMessage, projectUrl } from '@core/sync/projectUrl'
@@ -21,12 +22,14 @@ export interface SyncStatus {
   pending: number
   error: string | null
   lastResult: SyncResult | null
+  /** False on Linux without a keyring: secrets are then only protected by file permissions. */
+  keychain: boolean
 }
 
 const AUTO_DELAY = 5_000
 const FULL_INTERVAL = 5 * 60_000
 
-/** Session tokens and the sync key, encrypted with the OS keychain (safeStorage); never written in clear text. */
+/** Session tokens and the sync key, encrypted with safeStorage (see ensureEncryption for Linux without a keyring). */
 class SecureStore {
   private file = () => join(app.getPath('userData'), 'sync-secrets.json')
   private all(): Record<string, string> {
@@ -47,7 +50,7 @@ class SecureStore {
     }
   }
   set(k: string, v: string | null): void {
-    if (v !== null && !safeStorage.isEncryptionAvailable()) throw new Error('Secure storage is not available on this system')
+    if (v !== null) ensureEncryption()
     const all = this.all()
     if (v === null) delete all[k]
     else all[k] = safeStorage.encryptString(v).toString('base64')
@@ -127,7 +130,8 @@ export class SyncService {
       lastSyncAt: getState(this.ctx.db, 'last_sync'),
       pending: pendingCount(this.ctx.db),
       error: this.error,
-      lastResult: this.lastResult
+      lastResult: this.lastResult,
+      keychain: inKeychain()
     }
   }
 
