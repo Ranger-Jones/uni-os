@@ -1,7 +1,7 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { app, safeStorage } from 'electron'
-import { ensureEncryption } from './safeStore'
+import { ensureEncryption, writeSecretFile } from './safeStore'
 
 export type Provider = 'anthropic' | 'openai'
 
@@ -32,7 +32,7 @@ export function setKey(provider: Provider, key: string | null): void {
   const all = readAll()
   if (key) all[provider] = safeStorage.encryptString(key.trim()).toString('base64')
   else delete all[provider]
-  writeFileSync(file(), JSON.stringify(all), { mode: 0o600 })
+  writeSecretFile(file(), JSON.stringify(all))
 }
 
 export const keyStatus = (): Record<Provider, boolean> =>

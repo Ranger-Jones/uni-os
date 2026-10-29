@@ -1,3 +1,4 @@
+import { chmodSync, renameSync, writeFileSync } from 'node:fs'
 import { safeStorage } from 'electron'
 
 /**
@@ -19,4 +20,12 @@ export function inKeychain(): boolean {
   } catch {
     return false
   }
+}
+
+/** Writes a secrets file readable by this user only, also when an older file had looser permissions. */
+export function writeSecretFile(file: string, data: string): void {
+  const tmp = `${file}.${process.pid}.tmp`
+  writeFileSync(tmp, data, { mode: 0o600 })
+  chmodSync(tmp, 0o600)
+  renameSync(tmp, file)
 }

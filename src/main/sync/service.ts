@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { app, safeStorage } from 'electron'
-import { ensureEncryption, inKeychain } from '../safeStore'
+import { ensureEncryption, inKeychain, writeSecretFile } from '../safeStore'
 import { deriveKeyAsync, makeCheck, newSalt, verifyCheck } from '@core/sync/crypto'
 import { getState, markAllDirty, pendingCount, resetSyncState, setState, syncOnce, type SyncResult } from '@core/sync/engine'
 import { authErrorMessage, projectUrl } from '@core/sync/projectUrl'
@@ -54,7 +54,7 @@ class SecureStore {
     const all = this.all()
     if (v === null) delete all[k]
     else all[k] = safeStorage.encryptString(v).toString('base64')
-    writeFileSync(this.file(), JSON.stringify(all), { mode: 0o600 })
+    writeSecretFile(this.file(), JSON.stringify(all))
   }
   clear(prefix: string): void {
     for (const k of Object.keys(this.all())) if (k.startsWith(prefix)) this.set(k, null)

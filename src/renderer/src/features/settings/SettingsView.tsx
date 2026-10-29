@@ -13,6 +13,7 @@ import { useUpdateState } from '../update/useUpdate'
 import { confirm } from '../../components/ui/confirm'
 import { MascotSettings } from '../mascot/MascotSettings'
 import { SyncSettings } from '../sync/SyncSettings'
+import { useSyncStatus } from '../sync/useSync'
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -163,8 +164,10 @@ function TrashList() {
 function KeyRow({ provider, label, hint, saved }: { provider: 'anthropic' | 'openai'; label: string; hint: string; saved: boolean }) {
   const [value, setValue] = useState('')
   const save = useApiMutation((key: string | null) => api.ai.setKey({ provider, key }), { success: 'API key saved' })
+  const keychain = useSyncStatus().data?.keychain !== false
+  const savedHint = keychain ? 'Saved encrypted in your system keychain.' : 'Saved in a file only your user account can read — no system keyring found (install gnome-keyring for keychain protection).'
   return (
-    <Row label={label} hint={saved ? 'Saved encrypted on this device.' : hint}>
+    <Row label={label} hint={saved ? savedHint : hint}>
       {saved ? (
         <Button size="sm" variant="ghost" onClick={() => save.mutate(null)}>
           Remove key
