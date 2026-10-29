@@ -43,7 +43,18 @@ export interface SyncResult {
   dropped: number
   blobsUp: number
   blobsDown: number
+  /** Remote rows or files that failed authentication (tampered or written with another password) and were ignored. */
+  rejected: number
 }
+
+/** Encrypted content of a remote row; the clear-text metadata must match it. */
+interface Envelope {
+  deleted: boolean
+  updated_at: string
+  row?: Row
+}
+const rowAad = (entity: string, id: string) => `unios-row\u0000${entity}\u0000${id}`
+const blobAad = (blobKey: string) => `unios-blob\u0000${blobKey}`
 
 const table = (t: string) => sql.identifier(t)
 
@@ -144,20 +155,45 @@ async function uploadBlob(o: SyncOptions, blobKey: string, relPath: string): Pro
   if (blobState(o.db, blobKey) === 'uploaded') return false
   const abs = resolveInside(o.filesDir, relPath)
   if (!abs || !existsSync(abs)) return false
-  await o.remote.putBlob(blobKey, encryptBytes(o.key, readFileSync(abs)))
+  await o.remote.putBlob(blobKey, encryptBytes(o.key, readFileSync(abs), blobAad(blobKey)))
   setBlobState(o.db, blobKey, 'uploaded')
   return true
 }
 
-async function downloadBlob(o: SyncOptions, blobKey: string, relPath: string): Promise<boolean> {
+/** true = downloaded, false = nothing to do, 'rejected' = the blob did not authenticate for this key. */
+async function downloadBlob(o: SyncOptions, blobKey: string, relPath: string): Promise<boolean | 'rejected'> {
   const abs = resolveInside(o.filesDir, relPath)
   if (!abs || existsSync(abs)) return false
   const data = await o.remote.getBlob(blobKey)
   if (!data) return false
+  let plain: Uint8Array
+  try {
+    plain = decryptBytes(o.key, data, blobAad(blobKey))
+  } catch {
+    return 'rejected'
+  }
   mkdirSync(dirname(abs), { recursive: true })
-  writeFileSync(abs, decryptBytes(o.key, data))
+  writeFileSync(abs, plain)
   setBlobState(o.db, blobKey, 'uploaded')
   return true
+}
+
+/**
+ * Decrypt and authenticate a remote row: the ciphertext must belong to this table and id, and the clear-text
+ * deleted flag and timestamp must match the encrypted ones. null = reject.
+ */
+function openRow(key: Buffer, r: RemoteRow): { row: Row | null } | null {
+  if (!r.payload) return null
+  let env: Envelope
+  try {
+    env = decryptJson<Envelope>(key, r.payload, rowAad(r.entity, r.id))
+  } catch {
+    return null
+  }
+  if (env.deleted !== r.deleted || env.updated_at !== r.updated_at) return null
+  if (r.deleted) return { row: null }
+  if (!env.row || env.row.id !== r.id) return null
+  return { row: env.row }
 }
 
 // ----- the sync round -----
@@ -165,7 +201,7 @@ async function downloadBlob(o: SyncOptions, blobKey: string, relPath: string): P
 export async function syncOnce(o: SyncOptions): Promise<SyncResult> {
   const { db, remote, key, deviceId } = o
   const max = o.maxBlobBytes ?? MAX_BLOB_BYTES
-  const result: SyncResult = { pulled: 0, pushed: 0, conflicts: 0, dropped: 0, blobsUp: 0, blobsDown: 0 }
+  const result: SyncResult = { pulled: 0, pushed: 0, conflicts: 0, dropped: 0, blobsUp: 0, blobsDown: 0, rejected: 0 }
 
   // 1. Pull everything new (all pages first, so parents and children are applied together).
   const cursor = Number(getState(db, 'cursor') ?? 0)
@@ -183,10 +219,19 @@ export async function syncOnce(o: SyncOptions): Promise<SyncResult> {
   }
   const incoming = [...latest.values()].filter((r) => {
     if (r.device_id === deviceId || !isSyncTable(r.entity)) return false
+    if (getState(db, `rejected\u0000${r.entity}\u0000${r.id}`) === `${r.seq}`) return false // seen and rejected before
     const k = knownOf(db, r.entity, r.id)
     return !(k && k.updated_at >= r.updated_at && k.deleted === (r.deleted ? 1 : 0))
   })
-  const decoded = incoming.map((r) => ({ r, row: r.deleted || !r.payload ? null : decryptJson<Row>(key, r.payload) }))
+  const decoded: { r: RemoteRow; row: Row | null }[] = []
+  for (const r of incoming) {
+    const opened = openRow(key, r)
+    if (opened) decoded.push({ r, row: opened.row })
+    else {
+      result.rejected++
+      setState(db, `rejected\u0000${r.entity}\u0000${r.id}`, `${r.seq}`)
+    }
+  }
 
   // 2. Apply in one transaction; foreign keys are checked at commit, orphans removed before.
   const touched: { t: string; id: string; deleted: boolean }[] = []
@@ -244,11 +289,11 @@ export async function syncOnce(o: SyncOptions): Promise<SyncResult> {
   for (const x of touched) if (!x.deleted) refreshDerived(db, x.t, x.id)
 
   // 3. Files and note images that arrived without their content.
-  for (const f of db.all<Row>(sql`SELECT id, stored_path, size, mime FROM files`))
-    if (syncable(f, max) && (await downloadBlob(o, `file/${f.id}`, String(f.stored_path)))) result.blobsDown++
+  const count = (r: boolean | 'rejected') => (r === 'rejected' ? result.rejected++ : r ? result.blobsDown++ : 0)
+  for (const f of db.all<Row>(sql`SELECT id, stored_path, size, mime FROM files`)) if (syncable(f, max)) count(await downloadBlob(o, `file/${f.id}`, String(f.stored_path)))
   for (const x of touched.filter((x) => x.t === 'pages' && !x.deleted)) {
     const p = rowOf(db, 'pages', x.id)
-    for (const rel of assetPaths(String(p?.content ?? ''))) if (await downloadBlob(o, `asset/${rel}`, rel)) result.blobsDown++
+    for (const rel of assetPaths(String(p?.content ?? ''))) count(await downloadBlob(o, `asset/${rel}`, rel))
   }
 
   // 4. Push local changes in size-limited batches; an entry leaves the outbox only if it did not change meanwhile.
@@ -276,13 +321,16 @@ export async function syncOnce(o: SyncOptions): Promise<SyncResult> {
       if (await uploadBlob(o, `file/${row.id}`, String(row.stored_path))) result.blobsUp++
     } else if (row && out.entity === 'files') setBlobState(db, `file/${row.id}`, 'skipped')
     if (row && out.entity === 'pages') for (const rel of assetPaths(String(row.content ?? ''))) if (await uploadBlob(o, `asset/${rel}`, rel)) result.blobsUp++
-    const payload = row ? encryptJson(key, row) : null
+    const updatedAt = row ? stamp(row) : new Date().toISOString()
+    // Deletions carry an encrypted receipt too, so nobody with access to the cloud can forge them.
+    const envelope: Envelope = row ? { deleted: false, updated_at: updatedAt, row } : { deleted: true, updated_at: updatedAt }
+    const payload = encryptJson(key, envelope, rowAad(out.entity, out.id))
     batch.push({
       out,
-      row: { entity: out.entity, id: out.id, payload, deleted: !row, updated_at: row ? stamp(row) : new Date().toISOString(), device_id: deviceId },
+      row: { entity: out.entity, id: out.id, payload, deleted: !row, updated_at: updatedAt, device_id: deviceId },
       base: baseOf(out.entity, row)
     })
-    size += payload?.length ?? 100
+    size += payload.length
     if (size >= PUSH_BATCH_BYTES) await flush()
   }
   await flush()

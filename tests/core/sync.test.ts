@@ -211,3 +211,45 @@ test('remote rows whose parent never arrives are dropped instead of breaking the
   expect(r.dropped).toBe(1)
   expect(assignments.list(b.db, {})).toHaveLength(0)
 }, 30_000)
+
+test('tampering in the cloud is rejected: forged deletes, swapped payloads, changed timestamps, swapped files', async () => {
+  const remote = new FakeRemote()
+  const a = device('A')
+  const b = device('B')
+  const { c } = seed(a.db)
+  const x = assignments.create(a.db, { courseId: c.id, title: 'X' })
+  const y = assignments.create(a.db, { courseId: c.id, title: 'Y' })
+  const dir = mkdtempSync(join(tmpdir(), 'unios-sync-src-'))
+  writeFileSync(join(dir, 'one.txt'), 'one')
+  writeFileSync(join(dir, 'two.txt'), 'two')
+  const [f1, f2] = await files.importFiles(a.db, a.filesDir, c.id, [join(dir, 'one.txt'), join(dir, 'two.txt')])
+  await sync(a, remote)
+  await sync(b, remote)
+
+  const rowFor = (id: string) => remote.rows.find((r) => r.id === id)!
+  const bump = (r: (typeof remote.rows)[number], patch: Partial<(typeof remote.rows)[number]>) => {
+    remote.rows = remote.rows.filter((q) => q !== r)
+    remote.rows.push({ ...r, ...patch, device_id: 'attacker', seq: Math.max(...remote.rows.map((q) => q.seq)) + 1 })
+  }
+  // 1. a deletion without a valid encrypted receipt
+  bump(rowFor(x.id), { deleted: true, payload: null, updated_at: new Date(Date.now() + 60_000).toISOString() })
+  // 2. Y's entry carrying X's (valid) ciphertext
+  bump(rowFor(y.id), { payload: rowFor(x.id).payload ?? remote.rows.find((r) => r.entity === 'assignments' && r.id !== y.id)!.payload, updated_at: new Date(Date.now() + 60_000).toISOString() })
+  const r1 = await sync(b, remote)
+  expect(r1.rejected).toBe(2)
+  expect(assignments.list(b.db, {}).map((z) => z.title).sort()).toEqual(['X', 'Y'])
+
+  // 3. a valid ciphertext with a changed timestamp
+  const course = rowFor(c.id)
+  bump(course, { updated_at: new Date(Date.now() + 120_000).toISOString() })
+  expect((await sync(b, remote)).rejected).toBe(1)
+  bump(rowFor(c.id), { ...course }) // undo, so a fresh device gets the course again
+
+  // 4. file blobs swapped: the downloaded file must not end up under the other name
+  const c2 = device('C')
+  const blob1 = remote.blobs.get(`file/${f1.id}`)!
+  remote.blobs.set(`file/${f1.id}`, remote.blobs.get(`file/${f2.id}`)!)
+  remote.blobs.set(`file/${f2.id}`, blob1)
+  await sync(c2, remote)
+  expect(existsSync(join(c2.filesDir, files.get(c2.db, f1.id).storedPath))).toBe(false)
+}, 30_000)

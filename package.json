@@ -30,6 +30,7 @@
     "@blocknote/server-util": "^0.56.0",
     "@modelcontextprotocol/sdk": "^1.32.1",
     "@napi-rs/canvas": "1.0.13",
+    "@supabase/supabase-js": "2.118.0",
     "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.4",
     "electron-updater": "^6.8.11",
