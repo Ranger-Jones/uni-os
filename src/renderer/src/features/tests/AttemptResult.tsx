@@ -1,9 +1,10 @@
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronLeft, CircleCheck, CircleX, FileText, Loader2, RotateCcw, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { gradeEstimate, percentOf, responseText, solutionText } from '@core/domain/tests'
-import type { Attempt, TestWithQuestions } from '@core/repo/tests'
+import { gradeEstimate, percentOf, responseText, solutionText, TYPE_LABEL } from '@core/domain/tests'
+import type { Attempt, AttemptReport, TestWithQuestions } from '@core/repo/tests'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { api } from '../../lib/api'
@@ -15,7 +16,7 @@ import { md } from './AnswerInput'
 export const fmtPct = (p: number | null) => (p === null ? '—' : `${Math.round(p * 10) / 10} %`)
 export const fmtDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 
-/** Result of one attempt: score, grade estimate, and every answer with solution, feedback and point override. */
+/** Result of one attempt: score, grade estimate, a breakdown by topic and question type, and every answer with solution, feedback and point override. */
 export function AttemptResult({ test, attempt: initial, onBack, onRetry }: { test: TestWithQuestions; attempt: Attempt; onBack: () => void; onRetry: (questionIds: string[]) => void }) {
   const [attempt, setAttempt] = useState(initial)
   const [grading, setGrading] = useState(false)
@@ -23,6 +24,7 @@ export function AttemptResult({ test, attempt: initial, onBack, onRetry }: { tes
   const qs = new Map(test.questions.map((q) => [q.id, q]))
   const wrong = attempt.answers.filter((a) => !a.correct && qs.has(a.questionId)).map((a) => a.questionId)
   const pending = attempt.answers.some((a) => a.grading === 'pending')
+  const report = useQuery({ queryKey: ['attempt-report', attempt.id, attempt.updatedAt], queryFn: () => api.tests.report({ attemptId: attempt.id }) })
   const minutes = attempt.finishedAt ? Math.max(1, Math.round((Date.parse(attempt.finishedAt) - Date.parse(attempt.startedAt)) / 60_000)) : null
 
   const refresh = (a: Attempt) => {
@@ -62,6 +64,7 @@ export function AttemptResult({ test, attempt: initial, onBack, onRetry }: { tes
               <>
                 {' '}
                 · grade estimate <span className="font-medium text-ink">{gradeEstimate(pct).toFixed(1)}</span>
+                {report.data?.nextGrade && ` · ${fmtPts(report.data.nextGrade.pointsNeeded)} more for ${report.data.nextGrade.grade.toFixed(1)}`}
               </>
             )}
           </p>
@@ -79,6 +82,8 @@ export function AttemptResult({ test, attempt: initial, onBack, onRetry }: { tes
           )}
         </div>
       </section>
+
+      {report.data && <Breakdown report={report.data} />}
 
       <div className="flex flex-col gap-3">
         {attempt.answers.map((a, i) => {
@@ -140,6 +145,65 @@ export function AttemptResult({ test, attempt: initial, onBack, onRetry }: { tes
         })}
       </div>
     </div>
+  )
+}
+
+const fmtPts = (n: number) => `${n} pt${n === 1 ? '' : 's'}`
+
+function Meter({ points, max }: { points: number; max: number }) {
+  const ratio = max > 0 ? points / max : 1
+  return (
+    <span className="h-1.5 w-full overflow-hidden rounded-full bg-hover">
+      <span className={cn('block h-full rounded-full', ratio >= 0.8 ? 'bg-ok' : ratio >= 0.5 ? 'bg-warn' : 'bg-danger')} style={{ width: `${Math.round(ratio * 100)}%` }} />
+    </span>
+  )
+}
+
+/** Where the points were lost: per source page (weakest first) and per question type. */
+function Breakdown({ report }: { report: AttemptReport }) {
+  if (report.topics.length < 2 && report.types.length < 2) return null
+  return (
+    <section className="mb-6 grid gap-6 rounded-xl border border-line bg-raised p-5 sm:grid-cols-[3fr_2fr]">
+      <div>
+        <h3 className="mb-3 text-[13px] font-medium">By topic</h3>
+        <ul className="flex flex-col gap-3">
+          {report.topics.map((t) => (
+            <li key={t.pageId ?? 'other'} className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 text-[13px]">
+              {t.pageId ? (
+                <Link to="/pages/$pageId" params={{ pageId: t.pageId }} className="truncate hover:underline">
+                  {t.title}
+                </Link>
+              ) : (
+                <span className="truncate text-muted">{t.title}</span>
+              )}
+              <span className="text-[12.5px] text-muted tabular-nums">
+                {t.points} / {t.maxPoints} pts
+                {t.mistakes > 0 && ` · ${t.mistakes} of ${t.questions} wrong`}
+              </span>
+              <span className="col-span-2 flex">
+                <Meter points={t.points} max={t.maxPoints} />
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <h3 className="mb-3 text-[13px] font-medium">By question type</h3>
+        <ul className="flex flex-col gap-3">
+          {report.types.map((t) => (
+            <li key={t.type} className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 text-[13px]">
+              <span>{TYPE_LABEL[t.type]}</span>
+              <span className="text-[12.5px] text-muted tabular-nums">
+                {t.points} / {t.maxPoints} pts
+              </span>
+              <span className="col-span-2 flex">
+                <Meter points={t.points} max={t.maxPoints} />
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
   )
 }
 

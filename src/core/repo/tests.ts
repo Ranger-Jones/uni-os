@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 import type { Db } from '../db/open'
 import { files, pages, testAttempts, testQuestions, tests, type AttemptAnswer } from '../db/schema'
-import { autoGrade, clampPoints, normalizeQuestion, percentOf, TEST_KINDS, type Question, type QuestionInput, type Response } from '../domain/tests'
+import { autoGrade, clampPoints, gradeEstimate, normalizeQuestion, percentOf, QUESTION_TYPES, TEST_KINDS, type Question, type QuestionInput, type QuestionType, type Response } from '../domain/tests'
 import { AppError, notFound, parse } from '../errors'
 import { dateStr, isoDateTime, newId, nowIso } from '../util'
 import { get as getCourse } from './courses'
@@ -257,6 +257,84 @@ export function overridePoints(db: Db, attemptId: string, questionId: string, po
   if (!(points >= 0 && points <= q.points)) throw new AppError('VALIDATION', `Points must be between 0 and ${q.points}`)
   const answers = a.answers.map((x) => (x.questionId === questionId ? { ...x, points: round2(points), correct: points === q.points, grading: 'manual' as const } : x))
   return saveAnswers(db, a, answers)
+}
+
+/**
+ * Re-check answers that were graded automatically with today's rules (e.g. fractions such as "3/20" were not
+ * understood before). Manual and AI grades stay as they are. Returns how many attempts changed.
+ */
+export function refreshAutoGrades(db: Db, testId: string): number {
+  const qs = new Map(questionsOf(db, testId).map((q) => [q.id, q]))
+  let changed = 0
+  for (const a of listAttempts(db, testId)) {
+    let dirty = false
+    const answers = a.answers.map((x) => {
+      const q = qs.get(x.questionId)
+      if (x.grading !== 'auto' || !q) return x
+      const g = autoGrade(q, x.response ?? null)
+      if (!g || (g.points === x.points && g.correct === x.correct)) return x
+      dirty = true
+      return { ...x, ...g }
+    })
+    if (dirty) {
+      saveAnswers(db, a, answers)
+      changed++
+    }
+  }
+  return changed
+}
+
+export interface AttemptReport {
+  /** Points per source page, weakest first; questions without a source page are grouped as "Other". */
+  topics: { pageId: string | null; title: string; points: number; maxPoints: number; questions: number; mistakes: number }[]
+  types: { type: QuestionType; points: number; maxPoints: number; questions: number }[]
+  /** The next better grade on the German scale and the points still missing for it; null at 1.0. */
+  nextGrade: { grade: number; pointsNeeded: number } | null
+}
+
+export function attemptReport(db: Db, attemptId: string): AttemptReport {
+  const a = getAttempt(db, attemptId)
+  const qs = new Map(questionsOf(db, a.testId).map((q) => [q.id, q]))
+  const pageIds = [...new Set(a.answers.map((x) => qs.get(x.questionId)?.sourcePageId).filter((x): x is string => !!x))]
+  const titles = new Map(
+    pageIds.length ? db.select({ id: pages.id, title: pages.title }).from(pages).where(and(inArray(pages.id, pageIds), isNull(pages.deletedAt))).all().map((p) => [p.id, p.title]) : []
+  )
+  const topics = new Map<string, AttemptReport['topics'][number]>()
+  const types = new Map<QuestionType, AttemptReport['types'][number]>()
+  for (const x of a.answers) {
+    const q = qs.get(x.questionId)
+    if (!q) continue
+    const pageId = q.sourcePageId && titles.has(q.sourcePageId) ? q.sourcePageId : null
+    const topic = topics.get(pageId ?? '') ?? { pageId, title: pageId ? titles.get(pageId)! : 'Other', points: 0, maxPoints: 0, questions: 0, mistakes: 0 }
+    topic.points += x.points
+    topic.maxPoints += q.points
+    topic.questions++
+    if (!x.correct) topic.mistakes++
+    topics.set(pageId ?? '', topic)
+    const type = types.get(q.type) ?? { type: q.type, points: 0, maxPoints: 0, questions: 0 }
+    type.points += x.points
+    type.maxPoints += q.points
+    type.questions++
+    types.set(q.type, type)
+  }
+  const ratio = (t: { points: number; maxPoints: number }) => (t.maxPoints ? t.points / t.maxPoints : 1)
+  const rounded = <T extends { points: number; maxPoints: number }>(t: T): T => ({ ...t, points: round2(t.points), maxPoints: round2(t.maxPoints) })
+  return {
+    topics: [...topics.values()].sort((x, y) => ratio(x) - ratio(y) || x.title.localeCompare(y.title)).map(rounded),
+    types: QUESTION_TYPES.flatMap((t) => (types.has(t) ? [rounded(types.get(t)!)] : [])),
+    nextGrade: nextGrade(a.score, a.maxScore)
+  }
+}
+
+function nextGrade(score: number, max: number): AttemptReport['nextGrade'] {
+  const pct = percentOf(score, max)
+  if (pct === null) return null
+  const now = gradeEstimate(pct)
+  for (let threshold = 50; threshold <= 95; threshold += 5) {
+    const grade = gradeEstimate(threshold)
+    if (grade < now) return { grade, pointsNeeded: Math.max(0.5, Math.ceil(((threshold / 100) * max - score) * 2 - 1e-9) / 2) }
+  }
+  return null
 }
 
 export const PaperInput = z

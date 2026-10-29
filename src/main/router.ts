@@ -195,7 +195,11 @@ export function createRouter(ctx: AppContext, host: Host, chat: ChatService, upd
       removeQuestion: ({ id }: { id: string }) => tests.removeQuestion(ctx.db, id),
       generate: (input: Parameters<ChatService['generateTest']>[0]) => chat.generateTest(input),
       check: ({ questionId, response }: { questionId: string; response: Response }) => chat.checkAnswer(questionId, response),
-      attempts: ({ testId }: { testId: string }) => tests.listAttempts(ctx.db, testId),
+      attempts: ({ testId }: { testId: string }) => {
+        tests.refreshAutoGrades(ctx.db, testId)
+        return tests.listAttempts(ctx.db, testId)
+      },
+      report: ({ attemptId }: { attemptId: string }) => tests.attemptReport(ctx.db, attemptId),
       submit: ({ testId, startedAt, answers }: { testId: string; startedAt: string; answers: tests.SubmittedAnswer[] }) => tests.submitAttempt(ctx.db, testId, { startedAt, answers }),
       gradeAttempt: ({ attemptId }: { attemptId: string }) => chat.gradeAttempt(attemptId),
       overridePoints: ({ attemptId, questionId, points }: { attemptId: string; questionId: string; points: number }) => tests.overridePoints(ctx.db, attemptId, questionId, points),

@@ -171,5 +171,9 @@ export function responseText(q: Pick<Question, 'type' | 'options'>, r: Response)
   if (q.type === 'single' && typeof r === 'number') return q.options[r] ?? '—'
   if (q.type === 'multiple' && Array.isArray(r)) return r.map((i) => q.options[i] ?? `#${i + 1}`).join(' · ')
   if (typeof r === 'boolean') return r ? 'True' : 'False'
+  if (q.type === 'number' && typeof r === 'string' && r.includes('/')) {
+    const n = parseNumber(r)
+    if (n !== null) return `${r} (= ${Math.round(n * 1e6) / 1e6})`
+  }
   return String(r)
 }

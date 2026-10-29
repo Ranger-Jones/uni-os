@@ -218,6 +218,8 @@ test('generated proposals round-trip into input shape; answers and solutions rea
   expect(responseText(n, [1])).toBe('b')
   expect(responseText(n, [])).toBe('—')
   expect(responseText({ type: 'truefalse', options: [] }, false)).toBe('False')
+  expect(responseText({ type: 'number', options: [] }, '3/20')).toBe('3/20 (= 0.15)')
+  expect(responseText({ type: 'number', options: [] }, '0,15')).toBe('0,15')
 })
 
 test('unknown, foreign or trashed source pages are dropped instead of failing the whole test', async () => {
@@ -251,4 +253,83 @@ test('deleting a question settles its pending answers so attempts do not wait fo
   const after = tests.getAttempt(db, at.id)
   expect(after.answers[0]).toMatchObject({ grading: 'auto', points: 0, correct: false })
   expect(tests.pendingAnswers(db, at.id)).toEqual([])
+})
+
+test('answers auto-graded by an older version are re-checked with the current rules; manual and AI grades stay', async () => {
+  const { testAttempts } = await import('@core/db/schema')
+  const { eq } = await import('drizzle-orm')
+  const t = tests.create(db, {
+    courseId,
+    kind: 'exam',
+    title: 'Quiz 1 · Mock',
+    questions: [
+      { type: 'number', prompt: 'Units per frame?', value: 0.15, tolerance: 0.001, points: 1 },
+      { type: 'single', prompt: 'A?', options: ['x', 'y'], correct: [0], points: 2 },
+      { type: 'truefalse', prompt: 'B?', truth: true, points: 1 }
+    ]
+  })
+  const [n, s, tf] = tests.get(db, t.id).questions
+  const at = tests.submitAttempt(db, t.id, {
+    startedAt: '2026-10-29T10:00:00.000Z',
+    answers: [
+      { questionId: n.id, response: '3/20' },
+      { questionId: s.id, response: 1 },
+      { questionId: tf.id, response: true }
+    ]
+  })
+  // As stored by a version that did not understand fractions:
+  const old = at.answers.map((x) => (x.questionId === n.id ? { ...x, points: 0, correct: false } : x))
+  db.update(testAttempts).set({ answers: old, score: 1 }).where(eq(testAttempts.id, at.id)).run()
+  tests.overridePoints(db, at.id, s.id, 1)
+
+  expect(tests.refreshAutoGrades(db, t.id)).toBe(1)
+  const [after] = tests.listAttempts(db, t.id)
+  expect(after.answers.map((x) => [x.points, x.correct, x.grading])).toEqual([
+    [1, true, 'auto'],
+    [1, false, 'manual'],
+    [1, true, 'auto']
+  ])
+  expect(after.score).toBe(3)
+  expect(tests.refreshAutoGrades(db, t.id)).toBe(0)
+})
+
+test('attempt report: points per topic (weakest first), per question type, and what the next grade needs', async () => {
+  const pages = await import('@core/repo/pages')
+  const graphs = pages.create(db, { courseId, title: 'Scene graphs' })
+  const unity = pages.create(db, { courseId, title: 'Unity basics' })
+  const t = tests.create(db, {
+    courseId,
+    kind: 'exam',
+    title: 'Mock',
+    questions: [
+      { type: 'truefalse', prompt: 'a', truth: true, points: 4, sourcePageId: graphs.id },
+      { type: 'truefalse', prompt: 'b', truth: true, points: 4, sourcePageId: graphs.id },
+      { type: 'single', prompt: 'c', options: ['x', 'y'], correct: [0], points: 6, sourcePageId: unity.id },
+      { type: 'number', prompt: 'd', value: 2, points: 6 }
+    ]
+  })
+  const [a, b, c, d] = tests.get(db, t.id).questions
+  const at = tests.submitAttempt(db, t.id, {
+    startedAt: '2026-10-29T10:00:00.000Z',
+    answers: [
+      { questionId: a.id, response: true },
+      { questionId: b.id, response: false },
+      { questionId: c.id, response: 0 },
+      { questionId: d.id, response: '3' }
+    ]
+  })
+  expect(at.score).toBe(10)
+  const r = tests.attemptReport(db, at.id)
+  expect(r.topics).toEqual([
+    { pageId: null, title: 'Other', points: 0, maxPoints: 6, questions: 1, mistakes: 1 },
+    { pageId: graphs.id, title: 'Scene graphs', points: 4, maxPoints: 8, questions: 2, mistakes: 1 },
+    { pageId: unity.id, title: 'Unity basics', points: 6, maxPoints: 6, questions: 1, mistakes: 0 }
+  ])
+  expect(r.types).toEqual([
+    { type: 'single', points: 6, maxPoints: 6, questions: 1 },
+    { type: 'truefalse', points: 4, maxPoints: 8, questions: 2 },
+    { type: 'number', points: 0, maxPoints: 6, questions: 1 }
+  ])
+  // 10/20 = 50 % → 4.0; 55 % (11 pts) gives 3.7
+  expect(r.nextGrade).toEqual({ grade: 3.7, pointsNeeded: 1 })
 })
