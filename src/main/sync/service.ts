@@ -5,6 +5,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { app, safeStorage } from 'electron'
 import { deriveKeyAsync, makeCheck, newSalt, verifyCheck } from '@core/sync/crypto'
 import { getState, markAllDirty, pendingCount, resetSyncState, setState, syncOnce, type SyncResult } from '@core/sync/engine'
+import { authErrorMessage, projectUrl } from '@core/sync/projectUrl'
 import { SUPABASE_SETUP_SQL } from '@core/sync/setupSql'
 import type { AppContext } from '../context'
 import { SupabaseRemote } from './supabaseRemote'
@@ -141,14 +142,7 @@ export class SyncService {
   }
 
   async configure(input: { url: string; anonKey: string }): Promise<SyncStatus> {
-    let url: URL
-    try {
-      url = new URL(input.url.trim())
-    } catch {
-      throw new Error('Enter the project URL, e.g. https://abcdefgh.supabase.co')
-    }
-    if (url.protocol !== 'https:' && url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') throw new Error('The project URL must start with https://')
-    const clean = url.origin
+    const clean = projectUrl(input.url)
     const anonKey = input.anonKey.trim()
     if (anonKey.length < 20) throw new Error('Paste the anon (public) key from Project Settings → API.')
     const changed = clean !== this.cfg.url
@@ -166,14 +160,14 @@ export class SyncService {
 
   async signUp(input: { email: string; password: string }): Promise<{ confirmEmail: boolean }> {
     const { data, error } = await this.supabase().auth.signUp({ email: input.email.trim(), password: input.password })
-    if (error) throw new Error(error.message)
+    if (error) throw new Error(authErrorMessage(error.message))
     await this.publish()
     return { confirmEmail: !data.session }
   }
 
   async signIn(input: { email: string; password: string }): Promise<SyncStatus> {
     const { error } = await this.supabase().auth.signInWithPassword({ email: input.email.trim(), password: input.password })
-    if (error) throw new Error(/confirm/i.test(error.message) ? 'Confirm your email address first (check your inbox), then sign in.' : error.message)
+    if (error) throw new Error(authErrorMessage(error.message))
     return this.publish()
   }
 

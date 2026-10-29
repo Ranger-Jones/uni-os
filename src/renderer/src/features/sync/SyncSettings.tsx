@@ -66,11 +66,11 @@ export function SyncSettings() {
 
       <Step n={1} title="Connect your Supabase project" done={s.configured}>
         <p className="mb-2 text-[12.5px] text-muted">
-          Create a project on supabase.com, then copy the Project URL and the anon public key from Project Settings → API. Run the setup SQL once in the project's SQL editor.
+          Create a project on supabase.com and run the setup SQL once in its SQL editor. Then paste the project URL (https://&lt;project-ref&gt;.supabase.co — a dashboard link works too) and the publishable / anon public key from Project Settings → API Keys. Never paste the secret / service_role key.
         </p>
         <div className="flex flex-col gap-2">
           <Input placeholder="https://abcdefgh.supabase.co" value={url} onChange={(e) => setUrl(e.target.value)} />
-          <Input placeholder={s.configured ? 'anon key saved — paste a new one to change it' : 'anon public key'} value={anonKey} onChange={(e) => setAnonKey(e.target.value)} />
+          <Input placeholder={s.configured ? 'anon key saved — paste a new one to change it' : 'publishable / anon public key'} value={anonKey} onChange={(e) => setAnonKey(e.target.value)} />
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="primary" disabled={!url.trim() || !anonKey.trim() || busy !== null} onClick={() => void run('configure', () => api.sync.configure({ url, anonKey }), 'Supabase project saved').then(() => setAnonKey(''))}>
               Save project
