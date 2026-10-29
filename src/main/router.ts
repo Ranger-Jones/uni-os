@@ -23,6 +23,7 @@ import { isSafeToOpen } from '@core/paths'
 import type { AppContext } from './context'
 import type { ChatService } from './llm/chat'
 import type { Updater } from './updater'
+import type { SyncService } from './sync/service'
 import { ANTHROPIC_MODELS } from './llm/anthropic'
 import { OPENAI_MODEL_SUGGESTIONS } from './llm/openai'
 import { listLocalModels } from '@core/llm/local'
@@ -43,7 +44,7 @@ export interface Host {
 
 type Patch<T> = { id: string; patch: T }
 
-export function createRouter(ctx: AppContext, host: Host, chat: ChatService, updater: Updater) {
+export function createRouter(ctx: AppContext, host: Host, chat: ChatService, updater: Updater, sync: SyncService) {
   return {
     app: {
       info: () => ({ ...host.appInfo(), dataDir: ctx.dataDir })
@@ -59,7 +60,9 @@ export function createRouter(ctx: AppContext, host: Host, chat: ChatService, upd
     settings: {
       get: () => ctx.settings,
       update: (patch: Partial<Settings>) => {
-        const s = ctx.updateSettings(patch)
+        // Sync settings (server URL, key, enabled) change only through the validated sync.* calls.
+        const { sync: _ignored, ...safe } = patch
+        const s = ctx.updateSettings(safe)
         if (patch.theme) host.applyTheme(patch.theme)
         return s
       },
@@ -170,6 +173,17 @@ export function createRouter(ctx: AppContext, host: Host, chat: ChatService, upd
       remove: ({ id }: { id: string }) => cards.remove(ctx.db, id),
       review: ({ id, rating }: { id: string; rating: 1 | 2 | 3 | 4 }) => cards.review(ctx.db, id, rating, new Date()),
       generate: ({ pageId }: { pageId: string }) => chat.generateCards(pageId)
+    },
+    sync: {
+      status: () => sync.status(),
+      setupSql: () => sync.setupSql(),
+      configure: (input: { url: string; anonKey: string }) => sync.configure(input),
+      signUp: (input: { email: string; password: string }) => sync.signUp(input),
+      signIn: (input: { email: string; password: string }) => sync.signIn(input),
+      signOut: () => sync.signOut(),
+      setPassword: (input: { password: string }) => sync.setPassword(input),
+      setEnabled: ({ enabled }: { enabled: boolean }) => sync.setEnabled(enabled),
+      syncNow: () => sync.syncNow()
     },
     tests: {
       list: ({ courseId }: { courseId: string }) => tests.list(ctx.db, { courseId }),

@@ -7,6 +7,7 @@ import { registerDropImport, registerIpc } from './ipc'
 import { importFiles, addPageMarks } from '@core/repo/files'
 import { handleFileScheme, registerFileScheme } from './protocol'
 import { scheduleBackups } from './backup'
+import { SyncService } from './sync/service'
 import { ChatService } from './llm/chat'
 import { createRouter } from './router'
 import { Updater } from './updater'
@@ -54,6 +55,11 @@ function createWindow(): BrowserWindow {
 app.whenReady().then(() => {
   nativeTheme.themeSource = ctx.settings.theme
   const updater = new Updater(ctx, (state) => mainWindow?.webContents.send('update:state', state))
+  const sync = new SyncService(
+    ctx,
+    (status) => mainWindow?.webContents.send('sync:state', status),
+    () => mainWindow?.webContents.send('db:changed')
+  )
   handleFileScheme(ctx)
   const router = createRouter(ctx, {
     chooseFolder: async (title) => {
@@ -74,7 +80,7 @@ app.whenReady().then(() => {
       nativeTheme.themeSource = theme
     },
     appInfo: () => ({ version: app.getVersion(), userDataDir: app.getPath('userData'), platform: process.platform })
-  }, new ChatService(ctx, () => mainWindow?.webContents ?? null), updater)
+  }, new ChatService(ctx, () => mainWindow?.webContents ?? null), updater, sync)
   registerIpc(router)
   registerDropImport((courseId, paths) => importFiles(ctx.db, ctx.filesDir, courseId, paths))
   mainWindow = createWindow()
@@ -87,6 +93,7 @@ app.whenReady().then(() => {
   watchExternalChanges(ctx, () => mainWindow)
   scheduleBackups(ctx)
   updater.start()
+  sync.start()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow()
   })

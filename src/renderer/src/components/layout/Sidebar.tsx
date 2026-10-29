@@ -26,6 +26,7 @@ import { CourseDialog } from '../../features/courses/CourseDialog'
 import { SemesterDialog } from '../../features/courses/SemesterDialog'
 import { PageTree } from '../../features/pages/PageTree'
 import { UpdateCenter } from '../../features/update/UpdateCenter'
+import { SyncIndicator } from '../../features/sync/SyncIndicator'
 import { usePageActions } from '../../features/pages/usePageActions'
 import { confirm } from '../ui/confirm'
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from '../ui/Menu'
@@ -222,6 +223,7 @@ export function Sidebar() {
       </nav>
       <UpdateCenter />
       <div className="border-t border-line px-2 py-2">
+        <SyncIndicator />
         <Link to="/settings">
           <SidebarRow active={path.startsWith('/settings')}>
             <Settings size={15} className="text-muted" />

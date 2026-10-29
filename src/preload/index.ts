@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
 
-const EVENTS = new Set(['db:changed', 'chat:event', 'menu:command', 'update:state'])
+const EVENTS = new Set(['db:changed', 'chat:event', 'menu:command', 'update:state', 'sync:state'])
 
 const bridge = {
   invoke: (path: string, input?: unknown) => ipcRenderer.invoke('api:invoke', path, input),
